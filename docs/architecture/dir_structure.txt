@@ -1,0 +1,41 @@
+├── ai
+│   └── docs
+├── docs
+│   ├── architecture
+│   │   ├── adr
+│   │   └── ui
+│   └── operations
+├── metadata
+├── outputs
+│   ├── GP_CLO
+│   ├── GP_LEND
+│   ├── SP_CLO
+│   └── SP_LIQ
+├── research
+│   ├── experiments
+│   ├── investigations
+│   ├── reviews
+│   │   ├── components
+│   │   └── framework
+│   └── validation
+├── src
+│   ├── aptitude_lineage
+│   │   ├── canonical
+│   │   ├── cli
+│   │   ├── config
+│   │   ├── export
+│   │   ├── extractors
+│   │   ├── graph
+│   │   ├── lineage
+│   │   ├── models
+│   │   ├── parser
+│   │   ├── reporting
+│   │   ├── resolution
+│   │   ├── topology
+│   │   ├── utils
+│   │   └── workbook
+└── tests
+    ├── integration
+    ├── regression
+    ├── unit
+    └── validation

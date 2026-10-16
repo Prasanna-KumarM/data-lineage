@@ -1,0 +1,30 @@
+# Git ignore file for the project
+# Ignore Python cache files
+__pycache__/
+# Ignore virtual environment directories
+.venv/
+# Ignore environment variable files
+.env
+# Ignore log files
+*.log
+# Ignore temporary files
+*.tmp
+# Ignore backup files
+*.bak
+# Ignore compiled Python files
+*.pyc
+*.pyo
+*.pyd
+# Ignore distribution and build directories
+dist/
+build/
+eggs/
+*.egg-info/
+# Ignore metadata
+metadata/
+# Ignore output directories
+outputs/
+# Ignore workspace directories
+.vscode/
+*.code-workspace
+
