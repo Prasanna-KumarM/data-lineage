@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import type { ApiClient } from '../../ui/src/api/client'
-import type { StepDetail } from '../../ui/src/api/types'
+import type { ApiClient } from '../../src/ui/src/api/client'
+import type { StepDetail } from '../../src/ui/src/api/types'
 import { advance, cardsIn, hopContext, openApp, pressed } from './appHelpers'
 import { describeReal, realClient } from './helpers'
 

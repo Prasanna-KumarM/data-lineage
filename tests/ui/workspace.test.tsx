@@ -1,7 +1,7 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from '../../ui/src/App'
-import { relationStyle } from '../../ui/src/components/relationStyle'
+import App from '../../src/ui/src/App'
+import { relationStyle } from '../../src/ui/src/components/relationStyle'
 import { describeReal, realClient } from './helpers'
 
 const select = (name: string) => screen.getByLabelText(name) as HTMLSelectElement

@@ -38,7 +38,7 @@ Data examined: `outputs/SP_CLO/lineage.db` (schema_version 1.0.0, parser_version
 - **Gap details:** the table has no `business_process_id` or `business_process_name`. They are reachable only through `component` and `business_process`.
 - **Impact:** every API query joins two extra tables to get the Business Process.
 - **Suggested resolution:** add both columns to the model, materializer, DDL and insert, as specified in UI-02. `column_relation` stays authoritative.
-- **Improvement expected in the UI:** simpler and faster queries. The API migration `api/lineage_api/migrations.py` adds and fills the columns until the extractor does, and can then be removed.
+- **Improvement expected in the UI:** simpler and faster queries. The API migration `src/api/lineage_api/migrations.py` adds and fills the columns until the extractor does, and can then be removed.
 
 ### EG-03 — Confidence reason text is empty
 

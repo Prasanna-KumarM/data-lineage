@@ -1,8 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from '../../ui/src/App'
-import type { ApiClient } from '../../ui/src/api/client'
-import type { Choice, TerminalSource } from '../../ui/src/api/types'
+import App from '../../src/ui/src/App'
+import type { ApiClient } from '../../src/ui/src/api/client'
+import type { Choice, TerminalSource } from '../../src/ui/src/api/types'
 
 export const select = (name: string) => screen.getByLabelText(name) as HTMLSelectElement
 export const optionTexts = (el: HTMLSelectElement) => Array.from(el.options).map((o) => o.textContent)

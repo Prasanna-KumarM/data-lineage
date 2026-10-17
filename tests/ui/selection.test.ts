@@ -1,4 +1,4 @@
-import { emptySelection, selectionReducer, type Selection } from '../../ui/src/state/selection'
+import { emptySelection, selectionReducer, type Selection } from '../../src/ui/src/state/selection'
 
 const full: Selection = { project: 'P', objectId: 'O', columnId: 'C' }
 

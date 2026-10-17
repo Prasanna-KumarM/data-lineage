@@ -8,7 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 // Tests live in ../tests/ui, so the test root is the project root and their
 // bare imports are pointed at ui/node_modules.
 export default defineConfig({
-  root: path.resolve(here, '..'),
+  root: path.resolve(here, '../..'),
   cacheDir: path.join(here, 'node_modules/.vite'),
   plugins: [react()],
   resolve: {
@@ -17,7 +17,7 @@ export default defineConfig({
       { find: /^(react|react-dom)(\/.*)?$/, replacement: path.join(here, 'node_modules/$1$2') },
     ],
   },
-  server: { fs: { allow: [path.resolve(here, '..')] } },
+  server: { fs: { allow: [path.resolve(here, '../..')] } },
   test: {
     environment: 'jsdom',
     globals: true,

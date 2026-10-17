@@ -7,7 +7,7 @@ import pytest
 
 from conftest import ROOT
 
-sys.path.insert(0, str(ROOT / "api"))
+sys.path.insert(0, str(ROOT / "src" / "api"))
 
 from lineage_api.catalog import list_target_columns, list_target_objects  # noqa: E402
 from lineage_api.migrations import add_business_process_columns  # noqa: E402

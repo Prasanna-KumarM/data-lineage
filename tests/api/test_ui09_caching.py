@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from conftest import ROOT
 
-sys.path.insert(0, str(ROOT / "api"))
+sys.path.insert(0, str(ROOT / "src" / "api"))
 
 from lineage_api.app import create_app  # noqa: E402
 from lineage_api.db import open_readonly  # noqa: E402

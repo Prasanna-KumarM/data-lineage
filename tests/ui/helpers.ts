@@ -1,4 +1,4 @@
-import { createApiClient } from '../../ui/src/api/client'
+import { createApiClient } from '../../src/ui/src/api/client'
 
 export const apiBase = process.env.TEST_API_BASE
 
