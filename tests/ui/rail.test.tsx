@@ -52,7 +52,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
   })
 
   it('selecting a terminal choice shows only the selected hop', async () => {
-    const { user, choices, rail } = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
+    const { user, choices, rail } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('nothing further upstream'))!)
     await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT]))
     await waitFor(() => expect(summary(rail)).toBe('End of this branch.'))

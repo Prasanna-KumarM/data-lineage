@@ -134,13 +134,13 @@ def test_sp_clo_fdk_mt_branch_filtering(sp_clo):
         "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
         "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
         "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
-        "CM_CLO_OFFER.e_fdk_mt",
     ]
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    chain = next(r for r in roots if r["upstream_choice_count"] == 1)
-    leaf = next(r for r in roots if r["upstream_choice_count"] == 0)
-    assert _names(sources_for_step(resolved, leaf["step_id"])) == ["CM_CLO_OFFER.e_fdk_mt"]
-    assert len(sources_for_step(resolved, chain["step_id"])) == 3
+    # Both mappings reach e_fdk_mt, so both lead to the same three terminals.
+    assert len(roots) == 2
+    for root in roots:
+        assert _names(sources_for_step(resolved, root["step_id"])) == _names(sources_for_step(resolved))
+    chain = roots[0]
 
     level1 = get_upstream_choices(sp_clo, chain["step_id"])[0]
     level2 = get_upstream_choices(sp_clo, level1["step_id"])[0]
@@ -182,7 +182,7 @@ def test_terminals_without_expressions_are_still_merged(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
     resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
     assert all(t["condition"] is None and t["result_expression"] is None for t in resolved["terminal_sources"])
-    assert len(resolved["terminal_sources"]) == 4
+    assert len(resolved["terminal_sources"]) == 3
 
 
 def test_sp_clo_contract_id_three_branches(sp_clo):
@@ -267,8 +267,10 @@ def test_cache_clear(sp_clo):
 
 def test_terminal_flag_hides_descendants_from_target_sources(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
-    chain = next(r for r in get_root_choices(sp_clo, "SP_CLO", obj, col) if r["upstream_choice_count"] == 1)
-    sp_clo.execute("UPDATE business_lineage_step SET is_terminal = 1 WHERE step_id = ?", (chain["step_id"],))
+    roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    # Both mappings share their upstream, so every root step has to be flagged to hide it.
+    for root in roots:
+        sp_clo.execute("UPDATE business_lineage_step SET is_terminal = 1 WHERE step_id = ?", (root["step_id"],))
     resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
     assert _names(sources_for_step(resolved)) == ["CM_CLO_OFFER.e_fdk_mt"]
-    assert set(resolved["branch_terminals"]) == {r["step_id"] for r in get_root_choices(sp_clo, "SP_CLO", obj, col)}
+    assert set(resolved["branch_terminals"]) == {r["step_id"] for r in roots}

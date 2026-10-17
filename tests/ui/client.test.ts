@@ -30,7 +30,6 @@ describeReal('api client against the real lineage API', () => {
       'OFR_HTCS_BOOK_CODE',
       'OFR_HTC_BOOK_CODE',
       'OFR_HTS_BOOK_CODE',
-      'e_fdk_mt',
     ])
   })
 

@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react'
-import { select, optionTexts, cardsIn, cardTitles, pressed, sourceNames, openApp, treeClient, hopContext } from './appHelpers'
+import { select, optionTexts, cardsIn, cardTitles, pressed, sourceNames, openApp, treeClient, hopContext, advance } from './appHelpers'
 import { describeReal, realClient } from './helpers'
 
 describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
@@ -8,7 +8,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     const { user, choices, target, sources } = app
     const targetBefore = target.textContent
 
-    // Hop 1: two same-endpoint steps; only one continues.
+    // Hop 1: two mappings reach the same endpoint, and both continue the same way.
     expect(app.back().disabled).toBe(true)
     expect(app.next().disabled).toBe(true)
     expect(hopContext(choices)).toContain('Hop 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT')
@@ -63,21 +63,38 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     expect(hopContext(choices)).toContain('Hop 1')
     const restored = cardsIn(choices)
     expect(restored).toHaveLength(2)
-    expect(pressed(restored.find((c) => c.textContent?.includes('1 upstream choice'))!)).toBe(true)
-    expect(pressed(restored.find((c) => c.textContent?.includes('nothing further upstream'))!)).toBe(false)
+    expect(restored.map(pressed)).toEqual([true, false])
     await waitFor(() => expect(sourceNames(sources)).toHaveLength(3))
     expect(app.back().disabled).toBe(true)
     expect(target.textContent).toBe(targetBefore)
   })
 
+  it('gives both mappings that reach one endpoint the same upstream (CONTRACT_ID)', async () => {
+    const seen: string[][] = []
+    for (const index of [0, 1]) {
+      const app = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'CONTRACT_ID')
+      const cards = cardsIn(app.choices)
+      expect(cards).toHaveLength(2)
+      expect(cards.map((c) => c.textContent?.includes('3 upstream choices'))).toEqual([true, true])
+      expect(new Set(cards.map((c) => c.textContent?.match(/CM_CLO_OFR_[\w ]+Mapping/)?.[0])).size).toBe(2)
+      await app.user.click(cards[index])
+      await advance(app, 2)
+      await waitFor(() => expect(cardsIn(app.choices)).toHaveLength(3))
+      seen.push(cardsIn(app.choices).map((c) => c.textContent ?? '').sort())
+      document.body.innerHTML = ''
+    }
+    expect(seen[0]).toEqual(seen[1])
+    expect(seen[0].every((t) => t.includes('CM_CLO_OFFER.OFR_ID'))).toBe(true)
+  })
+
   it('does not allow Next on a terminal choice', async () => {
-    const { user, choices, next } = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
+    const { user, choices, next } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
     const leaf = cardsIn(choices).find((c) => c.textContent?.includes('nothing further upstream'))!
     await user.click(leaf)
     expect(pressed(leaf)).toBe(true)
     expect(next().disabled).toBe(true)
     expect(next().title).toBe('Nothing further upstream')
-    expect(cardsIn(choices)).toHaveLength(2)
+    expect(cardsIn(choices)).toHaveLength(3)
   })
 
   it('follows one branch of a multi-choice target', async () => {

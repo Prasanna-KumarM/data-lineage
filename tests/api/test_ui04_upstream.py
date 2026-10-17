@@ -80,17 +80,30 @@ def test_choice_counts_match_children_returned(real):
             )
 
 
-def test_children_are_always_one_level_deeper_in_same_path(real):
-    rows = real.execute(
-        "SELECT step_id, path_id, lineage_level FROM business_lineage_step"
-    ).fetchall()
-    for r in rows:
+def test_children_are_one_level_deeper_with_matching_endpoint_root_and_process(real):
+    for r in real.execute("SELECT * FROM business_lineage_step").fetchall():
         for c in get_upstream_choices(real, r["step_id"]):
-            path_id, level = real.execute(
-                "SELECT path_id, lineage_level FROM business_lineage_step WHERE step_id=?",
-                (c["step_id"],),
-            ).fetchone()
-            assert path_id == r["path_id"] and level == r["lineage_level"] + 1
+            child = real.execute("SELECT * FROM business_lineage_step WHERE step_id=?", (c["step_id"],)).fetchone()
+            assert child["lineage_level"] == r["lineage_level"] + 1
+            assert (child["root_target_object_id"], child["root_target_column_id"]) == (
+                r["root_target_object_id"], r["root_target_column_id"])
+            assert child["business_process_id"] == r["business_process_id"]
+            assert (child["target_object_id"], child["target_column_id"]) == (
+                r["source_object_id"], r["source_column_id"])
+
+
+def test_steps_reaching_the_same_endpoint_have_identical_upstream(real):
+    """Two mappings into one source column share that column's upstream, whatever their path_id."""
+    groups = {}
+    for r in real.execute("SELECT * FROM business_lineage_step").fetchall():
+        key = (r["root_target_object_id"], r["root_target_column_id"], r["business_process_id"],
+               r["lineage_level"], r["source_object_id"], r["source_column_id"])
+        groups.setdefault(key, []).append(r["step_id"])
+    shared = [steps for steps in groups.values() if len(steps) > 1]
+    assert shared
+    for steps in shared:
+        children = [sorted(c["step_id"] for c in get_upstream_choices(real, s)) for s in steps]
+        assert all(c == children[0] for c in children), steps
 
 
 def test_unknown_step_raises(real):
@@ -126,24 +139,56 @@ def test_sp_clo_selected_branch_hides_sibling_routes(sp_clo):
 def test_sp_clo_four_hop_chain_walks_to_three_siblings(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    # Two distinct steps share the same endpoint; only one continues upstream.
+    # Two mappings (one per component) reach the same endpoint, so both continue the same way.
     assert _names(roots) == ["CM_CLO_OFFER.e_fdk_mt"] * 2
     assert len({c["step_id"] for c in roots}) == 2
-    assert sorted(c["upstream_choice_count"] for c in roots) == [0, 1]
-    level = [next(c for c in roots if c["upstream_choice_count"] == 1)]
-    walked = []
-    while len(level) == 1:
-        walked.append(level[0])
-        level = get_upstream_choices(sp_clo, level[0]["step_id"])
-    assert [c["relation_type"] for c in walked] == [
-        "EXPLICIT_INATTR", "EXPLICIT_PATHFROM_PATHTO", "ENRICHMENT_LOOKUP",
-    ]
-    assert _names(level) == [
-        "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
-        "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
-        "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
-    ]
-    assert all(c["is_terminal"] for c in level)
+    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
+    for root in roots:
+        level = [root]
+        walked = []
+        while len(level) == 1:
+            walked.append(level[0])
+            level = get_upstream_choices(sp_clo, level[0]["step_id"])
+        assert [c["relation_type"] for c in walked] == [
+            "EXPLICIT_INATTR", "EXPLICIT_PATHFROM_PATHTO", "ENRICHMENT_LOOKUP",
+        ]
+        assert _names(level) == [
+            "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
+            "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
+            "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
+        ]
+        assert all(c["is_terminal"] for c in level)
+
+
+def test_sp_clo_contract_id_both_mappings_lead_to_the_same_three_steps(sp_clo):
+    obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "CONTRACT_ID")
+    roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    assert {c["component_name"] for c in roots} == {"CM_CLO_OFR_COMM Mapping", "CM_CLO_OFR_Fair Value Mapping"}
+    assert _names(roots) == ["CM_CLO_OFFER.e_contract_id"] * 2
+    assert [c["upstream_choice_count"] for c in roots] == [3, 3]
+    below = [get_upstream_choices(sp_clo, c["step_id"]) for c in roots]
+    assert [b["step_id"] for b in below[0]] == [b["step_id"] for b in below[1]]
+    assert sorted(b["component_name"] for b in below[0]) == ["CM_CLO_OFR_HTC", "CM_CLO_OFR_HTCS", "CM_CLO_OFR_HTS"]
+    assert _names(below[0]) == ["CM_CLO_OFFER.OFR_ID"] * 3
+
+
+def test_sp_clo_counterparty_country_both_mappings_lead_to_the_same_lookup(sp_clo):
+    obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "COUNTERPARTY_COUNTRY_ISO_CODE")
+    roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
+    below = [get_upstream_choices(sp_clo, c["step_id"]) for c in roots]
+    assert [b["step_id"] for b in below[0]] == [b["step_id"] for b in below[1]]
+    assert below[0][0]["component_name"] == "CLO_CM_OFR_Enrichment"
+
+
+def test_sp_clo_every_same_endpoint_root_pair_now_agrees(sp_clo):
+    for o in list_target_objects(sp_clo, "SP_CLO"):
+        for c in list_target_columns(sp_clo, "SP_CLO", o["object_id"]):
+            roots = get_root_choices(sp_clo, "SP_CLO", o["object_id"], c["column_id"])
+            by_endpoint = {}
+            for r in roots:
+                by_endpoint.setdefault((r["source_object_id"], r["source_column_id"]), set()).add(r["upstream_choice_count"])
+            assert all(len(counts) == 1 for counts in by_endpoint.values()), (o["object_name"], c["column_name"])
 
 
 def test_sp_clo_expression_branches_keep_separate_choices(sp_clo):
