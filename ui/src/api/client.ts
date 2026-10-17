@@ -1,6 +1,7 @@
 import type {
   Project,
   RemainingDepth,
+  StepDetail,
   TargetColumn,
   TargetObject,
   TargetRef,
@@ -27,6 +28,7 @@ export interface ApiClient {
   rootChoices(target: TargetRef, signal?: AbortSignal): Promise<UpstreamResponse>
   upstream(stepId: string, signal?: AbortSignal): Promise<UpstreamResponse>
   remainingDepth(stepId: string, signal?: AbortSignal): Promise<RemainingDepth>
+  stepDetail(stepId: string, signal?: AbortSignal): Promise<StepDetail>
   ultimateSources(target: TargetRef, signal?: AbortSignal, stepId?: string): Promise<UltimateSourcesResponse>
 }
 
@@ -75,6 +77,7 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl }: ApiClien
     rootChoices: (target, signal) => get('/lineage/upstream', targetParams(target), signal),
     upstream: (stepId, signal) => get('/lineage/upstream', { step_id: stepId }, signal),
     remainingDepth: (stepId, signal) => get('/lineage/remaining-depth', { step_id: stepId }, signal),
+    stepDetail: (stepId, signal) => get(`/steps/${encodeURIComponent(stepId)}`, {}, signal),
     ultimateSources: (target, signal, stepId) =>
       get('/lineage/ultimate-sources', { ...targetParams(target), ...(stepId ? { step_id: stepId } : {}) }, signal),
   }

@@ -26,7 +26,7 @@ async function open(objectName: string, columnName: string) {
 
 const mappings = (scope: HTMLElement) => within(scope).getByRole('list', { name: 'Upstream mappings' })
 const getCards = (scope: HTMLElement) =>
-  within(mappings(scope)).getAllByRole('listitem').map((li) => within(li).getByRole('button'))
+  within(mappings(scope)).getAllByRole('listitem').map((li) => li.querySelector('button.card') as HTMLElement)
 const findCards = async (scope: HTMLElement) => {
   await within(scope).findByRole('list', { name: 'Upstream mappings' })
   return getCards(scope)
@@ -53,7 +53,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('renders a choice card with endpoint, relation, confidence, component and upstream count', async () => {
     const { choices } = await open('AR_PAR_LOAN_EVENTS', 'MDE_CODE')
-    const card = await within(choices).findByRole('button', { name: /e_product_group/ })
+    const card = await within(choices).findByRole('button', { name: /^AR_CLO_ACCOUNTING_EVENTS\.e_product_group/ })
     expect(card.textContent).toContain('AR_CLO_ACCOUNTING_EVENTS.e_product_group')
     expect(card.textContent).toContain('Direct mapping (path)')
     expect(card.textContent).toContain('Explicit')
