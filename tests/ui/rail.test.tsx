@@ -56,7 +56,8 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     await waitFor(() => expect(cardsIn(choices)).toHaveLength(3))
     await user.click(cardsIn(choices)[0])
     await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, FILLED, FILLED, CURRENT]))
-    expect(summary(rail)).toBe('End of this branch.')
+    // The same glyphs appear while the depth is still loading, so wait for the text.
+    await waitFor(() => expect(summary(rail)).toBe('End of this branch.'))
   })
 
   it('selecting a terminal choice shows only the selected hop', async () => {
