@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useReducer, useRef } from 'react'
 import { ApiError, type ApiClient } from '../api/client'
-import type { TargetColumn, TargetObject, TargetRef, TerminalSource } from '../api/types'
+import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types'
 import { useAsync, type AsyncState } from '../hooks/useAsync'
+import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
 import { ChoiceList } from './ChoiceList'
 import { SourceList } from './SourceList'
 import { TargetPanel } from './TargetPanel'
@@ -19,7 +20,7 @@ export function LineageWorkspace({ client, target, object, column, allObjects }:
     return <p className="placeholder">Select a project, target object and target column to start.</p>
   }
   const key = `${target.project}:${target.objectId}:${target.columnId}`
-  // Keyed so that choosing another target discards the previous selection.
+  // Keyed so that choosing another target discards the whole navigation state.
   return (
     <Session key={key} client={client} target={target} object={object} column={column} allObjects={allObjects} sessionKey={key} />
   )
@@ -52,30 +53,42 @@ function Session({
   allObjects,
   sessionKey,
 }: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string }) {
-  const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+  const [nav, dispatch] = useReducer(navigationReducer, initialNavigation)
+  const depth = nav.path.length
+  const parent = nav.path[depth - 1]
+  const parentKey = parent?.step_id ?? 'root'
 
-  const session = useAsync(
-    async (signal) => {
-      const [upstream, sources] = await Promise.all([
-        client.rootChoices(target, signal),
-        client.ultimateSources(target, signal),
-      ])
-      return { choices: upstream.choices, sources: sources.terminal_sources }
-    },
-    sessionKey,
+  // Lists already seen are kept so that Back shows exactly what was there before.
+  const listCache = useRef(new Map<string, Choice[]>())
+  const cached = listCache.current.get(parentKey)
+  const loadedList = useAsync<Choice[]>(
+    cached
+      ? null
+      : async (signal) => {
+          const response = parent ? await client.upstream(parent.step_id, signal) : await client.rootChoices(target, signal)
+          listCache.current.set(parentKey, response.choices)
+          return response.choices
+        },
+    `${sessionKey}:list:${parentKey}`,
   )
+  const list: AsyncState<Choice[]> & { reload: () => void } = cached
+    ? { status: 'success', data: cached, reload: loadedList.reload }
+    : loadedList
 
+  const allSources = useAsync(
+    async (signal) => (await client.ultimateSources(target, signal)).terminal_sources,
+    `${sessionKey}:sources`,
+  )
+  const activeId = activeStepId(nav)
   const branchSources = useAsync(
-    selectedStepId ? async (signal) => (await client.ultimateSources(target, signal, selectedStepId)).terminal_sources : null,
-    `${sessionKey}:${selectedStepId}`,
+    activeId ? async (signal) => (await client.ultimateSources(target, signal, activeId)).terminal_sources : null,
+    `${sessionKey}:branch:${activeId}`,
   )
+  const sources = activeId === null ? allSources : branchSources
 
-  const sources: AsyncState<TerminalSource[]> =
-    selectedStepId === null
-      ? session.status === 'success'
-        ? { status: 'success', data: session.data.sources }
-        : session
-      : branchSources
+  const selected = list.status === 'success' ? list.data.find((c) => c.step_id === nav.selectedStepId) : undefined
+  const canNext = Boolean(selected?.has_more_upstream)
+  const endpoint = parent ? `${parent.source_object_name}.${parent.source_column_name}` : `${object.object_name}.${column.column_name}`
 
   return (
     <div className="workspace" role="region" aria-label="Lineage session">
@@ -83,19 +96,39 @@ function Session({
 
       <section className="panel" aria-label="Upstream choices">
         <h2 className="panel-title">Upstream choices</h2>
-        {session.status === 'loading' && <Loading text="Loading lineage…" />}
-        {session.status === 'error' && <Failure error={session.error} onRetry={session.reload} />}
-        {session.status === 'success' && (
-          <ChoiceList choices={session.data.choices} selectedStepId={selectedStepId} onSelect={setSelectedStepId} />
+        <p className="context">
+          Hop {depth + 1} · upstream of <strong>{endpoint}</strong>
+        </p>
+        {list.status === 'loading' && <Loading text="Loading lineage…" />}
+        {list.status === 'error' && <Failure error={list.error} onRetry={list.reload} />}
+        {list.status === 'success' && (
+          <ChoiceList
+            choices={list.data}
+            selectedStepId={nav.selectedStepId}
+            atRoot={depth === 0}
+            onSelect={(stepId) => dispatch({ type: 'select', stepId })}
+          />
         )}
+        <div className="nav-actions">
+          <button type="button" onClick={() => dispatch({ type: 'back' })} disabled={depth === 0}>
+            Back
+          </button>
+          <button
+            type="button"
+            className="primary"
+            onClick={() => selected && dispatch({ type: 'next', choice: selected })}
+            disabled={!canNext}
+            title={selected && !canNext ? 'Nothing further upstream' : undefined}
+          >
+            Next
+          </button>
+        </div>
       </section>
 
       <section className="panel" aria-label="Ultimate sources">
         <h2 className="panel-title">Ultimate sources</h2>
         {sources.status === 'loading' && <Loading text="Loading sources…" />}
-        {sources.status === 'error' && session.status !== 'error' && (
-          <Failure error={sources.error} onRetry={selectedStepId ? branchSources.reload : session.reload} />
-        )}
+        {sources.status === 'error' && list.status !== 'error' && <Failure error={sources.error} onRetry={sources.reload} />}
         {sources.status === 'success' && <SourceList sources={sources.data} />}
       </section>
     </div>
