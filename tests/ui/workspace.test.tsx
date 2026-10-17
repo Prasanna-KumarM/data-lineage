@@ -24,10 +24,11 @@ async function open(objectName: string, columnName: string) {
   }
 }
 
+const mappings = (scope: HTMLElement) => within(scope).getByRole('list', { name: 'Upstream mappings' })
 const getCards = (scope: HTMLElement) =>
-  within(scope).getAllByRole('listitem').map((li) => within(li).getByRole('button'))
+  within(mappings(scope)).getAllByRole('listitem').map((li) => within(li).getByRole('button'))
 const findCards = async (scope: HTMLElement) => {
-  await within(scope).findAllByRole('listitem')
+  await within(scope).findByRole('list', { name: 'Upstream mappings' })
   return getCards(scope)
 }
 

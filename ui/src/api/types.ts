@@ -79,3 +79,11 @@ export interface UltimateSourcesResponse {
   step_id: string | null
   terminal_sources: TerminalSource[]
 }
+
+export interface RemainingDepth {
+  step_id: string
+  is_terminal: boolean
+  remaining_hops_exact: number | null
+  remaining_hops_min: number
+  remaining_hops_max: number
+}
