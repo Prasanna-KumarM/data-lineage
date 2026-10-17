@@ -60,7 +60,7 @@ describeReal('selector workflow on the real SP_CLO lineage', () => {
     const panel = await screen.findByRole('region', { name: 'Lineage session' })
     expect(await within(panel).findAllByRole('button', { name: /^CM_CLO_OFFER\.e_fdk_mt/ })).toHaveLength(2)
     const sources = within(panel).getByRole('region', { name: 'Ultimate sources' })
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
   })
 
   it('changing the target object resets the column and the lineage session', async () => {

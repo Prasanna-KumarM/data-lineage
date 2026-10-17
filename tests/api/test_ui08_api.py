@@ -85,15 +85,16 @@ def test_ultimate_sources_full_and_filtered_by_step(client, sp_clo):
     t = _target(client, "CM_PAR_LOAN_TRADES", "FDK_MT")
     full = client.get("/lineage/ultimate-sources", params=t).json()
     assert [s["column_name"] for s in full["terminal_sources"]] == [
-        "OFR_HTCS_BOOK_CODE", "OFR_HTC_BOOK_CODE", "OFR_HTS_BOOK_CODE", "e_fdk_mt",
-    ]
-    roots = client.get("/lineage/upstream", params=t).json()["choices"]
-    chain = next(c for c in roots if c["upstream_choice_count"] == 1)
-    filtered = client.get("/lineage/ultimate-sources", params={**t, "step_id": chain["step_id"]}).json()
-    assert filtered["step_id"] == chain["step_id"]
-    assert [s["column_name"] for s in filtered["terminal_sources"]] == [
         "OFR_HTCS_BOOK_CODE", "OFR_HTC_BOOK_CODE", "OFR_HTS_BOOK_CODE",
     ]
+    roots = client.get("/lineage/upstream", params=t).json()["choices"]
+    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
+    for chain in roots:
+        filtered = client.get("/lineage/ultimate-sources", params={**t, "step_id": chain["step_id"]}).json()
+        assert filtered["step_id"] == chain["step_id"]
+        assert [s["column_name"] for s in filtered["terminal_sources"]] == [
+            "OFR_HTCS_BOOK_CODE", "OFR_HTC_BOOK_CODE", "OFR_HTS_BOOK_CODE",
+        ]
 
 
 def test_remaining_depth(client, sp_clo):

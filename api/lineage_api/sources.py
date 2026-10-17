@@ -1,6 +1,6 @@
 """Ultimate terminal-source resolver and per-session target cache (UI-05).
 
-All steps of the selected target's paths are loaded once, then every step is mapped to the
+All steps of the selected target are loaded once, then every step is mapped to the
 terminal sources reachable below it, so branch selection filters the right panel without
 touching the database again.
 """
@@ -13,17 +13,15 @@ from typing import Any
 from lineage_api.upstream import StepNotFound
 
 _STEPS_SQL = """
-    SELECT s.step_id, s.path_id, s.lineage_level, s.is_terminal, s.relation_type,
+    SELECT s.step_id, s.business_process_id, s.lineage_level, s.is_terminal, s.relation_type,
            s.source_object_id, s.source_column_id, s.source_object_name, s.source_column_name,
            s.target_object_id, s.target_column_id, s.driving_expression, s.result_expression,
            o.object_type
     FROM business_lineage_step s
+    JOIN business_process bp ON bp.business_process_id = s.business_process_id
     LEFT JOIN canonical_object o ON o.object_id = s.source_object_id
-    WHERE s.path_id IN (
-        SELECT r.path_id FROM business_lineage_step r
-        JOIN business_process bp ON bp.business_process_id = r.business_process_id
-        WHERE r.lineage_level = 0 AND bp.project_name = ?
-          AND r.root_target_object_id = ? AND r.root_target_column_id = ?)
+    WHERE bp.project_name = ?
+      AND s.root_target_object_id = ? AND s.root_target_column_id = ?
 """
 
 
@@ -44,7 +42,7 @@ def resolve_terminal_sources(
     children: dict[tuple, list[str]] = {}
     for s in steps:
         children.setdefault(
-            (s["path_id"], s["lineage_level"], s["target_object_id"], s["target_column_id"]), []
+            (s["business_process_id"], s["lineage_level"], s["target_object_id"], s["target_column_id"]), []
         ).append(s["step_id"])
 
     by_id = {s["step_id"]: s for s in steps}
@@ -53,7 +51,7 @@ def resolve_terminal_sources(
         if s["is_terminal"]:
             return []
         return children.get(
-            (s["path_id"], s["lineage_level"] + 1, s["source_object_id"], s["source_column_id"]), []
+            (s["business_process_id"], s["lineage_level"] + 1, s["source_object_id"], s["source_column_id"]), []
         )
 
     # A step flagged terminal hides its descendants, so only steps reachable from a root count.

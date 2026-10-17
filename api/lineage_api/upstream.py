@@ -1,8 +1,9 @@
 """Immediate-upstream navigation service (UI-04).
 
-A path_id in business_lineage_step is a tree rooted at one level-0 step. The children of a
-step are the steps one level deeper in the same path whose target endpoint is this step's
-source endpoint. Scoping by path keeps sibling branches (p2, p3) out once p1 is chosen.
+The children of a step are the steps of the same root target and Business Process, one level
+deeper, whose target endpoint is this step's source endpoint. Steps are matched by endpoint,
+not by path_id: two mappings that reach one endpoint share its upstream, and a branch the
+user did not choose stays out because its endpoint differs.
 """
 import sqlite3
 from typing import Any
@@ -22,7 +23,10 @@ _CHOICE_SELECT = """
            c.traversal_path, c.driving_expression, c.result_expression, c.expression_id,
            c.lineage_level, c.is_terminal,
            (SELECT COUNT(*) FROM business_lineage_step g
-             WHERE g.path_id = c.path_id AND g.lineage_level = c.lineage_level + 1
+             WHERE g.root_target_object_id = c.root_target_object_id
+               AND g.root_target_column_id = c.root_target_column_id
+               AND g.business_process_id IS c.business_process_id
+               AND g.lineage_level = c.lineage_level + 1
                AND g.target_object_id = c.source_object_id
                AND g.target_column_id = c.source_column_id
                AND c.is_terminal = 0) AS upstream_choice_count
@@ -66,7 +70,10 @@ def get_upstream_choices(conn: sqlite3.Connection, step_id: str) -> list[dict[st
         _CHOICE_SELECT
         + """FROM business_lineage_step p
              JOIN business_lineage_step c
-               ON c.path_id = p.path_id AND c.lineage_level = p.lineage_level + 1
+               ON c.root_target_object_id = p.root_target_object_id
+              AND c.root_target_column_id = p.root_target_column_id
+              AND c.business_process_id IS p.business_process_id
+              AND c.lineage_level = p.lineage_level + 1
               AND c.target_object_id = p.source_object_id
               AND c.target_column_id = p.source_column_id
              WHERE p.step_id = ? AND p.is_terminal = 0"""

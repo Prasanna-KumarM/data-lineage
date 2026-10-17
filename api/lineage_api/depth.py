@@ -8,7 +8,11 @@ _SUBTREE_SQL = """
     SELECT g.step_id, g.lineage_level, g.is_terminal,
            g.source_object_id, g.source_column_id, g.target_object_id, g.target_column_id
     FROM business_lineage_step s
-    JOIN business_lineage_step g ON g.path_id = s.path_id AND g.lineage_level >= s.lineage_level
+    JOIN business_lineage_step g
+      ON g.root_target_object_id = s.root_target_object_id
+     AND g.root_target_column_id = s.root_target_column_id
+     AND g.business_process_id IS s.business_process_id
+     AND g.lineage_level >= s.lineage_level
     WHERE s.step_id = ?
 """
 

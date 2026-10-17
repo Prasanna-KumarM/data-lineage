@@ -83,13 +83,10 @@ def test_depth_decreases_by_one_per_hop_along_every_branch(real):
 def test_sp_clo_four_hop_chain_counts_down_to_terminal(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    chain = next(r for r in roots if r["upstream_choice_count"] == 1)
-    leaf_root = next(r for r in roots if r["upstream_choice_count"] == 0)
-
-    assert get_remaining_depth(sp_clo, leaf_root["step_id"]) == {
-        "step_id": leaf_root["step_id"], "is_terminal": True,
-        "remaining_hops_exact": 0, "remaining_hops_min": 0, "remaining_hops_max": 0,
-    }
+    # Both mappings reach e_fdk_mt, so both have the same three hops left.
+    for root in roots:
+        assert get_remaining_depth(sp_clo, root["step_id"])["remaining_hops_exact"] == 3
+    chain = roots[0]
 
     expected = [3, 2, 1]
     step = chain

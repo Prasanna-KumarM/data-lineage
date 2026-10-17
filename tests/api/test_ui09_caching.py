@@ -135,12 +135,13 @@ def test_oversized_session_id_is_rejected(client):
 def test_changed_database_file_is_recomputed_and_not_stale(client, db_file):
     t = _target(client, "CM_PAR_LOAN_TRADES", "FDK_MT")
     before = _sources(client, t)["terminal_sources"]
-    assert len(before) == 4
+    assert len(before) == 3
 
     roots = client.get("/lineage/upstream", params=t).json()["choices"]
-    chain = next(c for c in roots if c["upstream_choice_count"] == 1)
     rw = sqlite3.connect(db_file)
-    rw.execute("UPDATE business_lineage_step SET is_terminal = 1 WHERE step_id = ?", (chain["step_id"],))
+    # Both mappings share their upstream, so both root steps have to be flagged to hide it.
+    for chain in roots:
+        rw.execute("UPDATE business_lineage_step SET is_terminal = 1 WHERE step_id = ?", (chain["step_id"],))
     rw.commit()
     rw.close()
 
@@ -156,7 +157,7 @@ def test_touched_database_file_invalidates_without_content_change(client, db_fil
     os.utime(db_file, ns=(st.st_atime_ns, st.st_mtime_ns + 1_000_000_000))
     again = _sources(client, t)
     assert _cache(client).compute_count == 2
-    assert len(again["terminal_sources"]) == 4
+    assert len(again["terminal_sources"]) == 3
 
 
 def test_replacing_the_database_file_invalidates(client, db_file, tmp_path):

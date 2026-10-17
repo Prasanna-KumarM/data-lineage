@@ -73,12 +73,11 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('lists every ultimate source of a multi-source target, with relation kinds', async () => {
     const { sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
     expect(sourceNames(sources)).toEqual([
       'CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',
       'CM_CLO_OFFER.OFR_HTC_BOOK_CODE',
       'CM_CLO_OFFER.OFR_HTS_BOOK_CODE',
-      'CM_CLO_OFFER.e_fdk_mt',
     ])
   })
 
@@ -104,42 +103,44 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('does not add a condition line to sources without an expression', async () => {
     const { sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
     expect(sources.querySelector('.source-condition')).toBeNull()
   })
 
   it('selecting a branch filters the sources but keeps the choices and the target', async () => {
-    const { user, target, choices, sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
+    const { user, target, choices, sources } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
+    await waitFor(() => expect(sourceNames(sources)).toEqual([
+      'AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE',
+      'AR_CLO_ACCOUNTING_EVENTS.AEF_OFFER_ID',
+    ]))
     const targetBefore = target.textContent
     const cards = await findCards(choices)
-    expect(cards).toHaveLength(2)
+    expect(cards).toHaveLength(3)
+    const [eventCode, offerId, contractId] = cards
 
-    const chain = cards.find((c) => c.textContent?.includes('1 upstream choice'))!
-    const leaf = cards.find((c) => c.textContent?.includes('nothing further upstream'))!
+    await user.click(eventCode)
+    expect(eventCode.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(sourceNames(sources)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE']))
 
-    await user.click(chain)
-    expect(chain.getAttribute('aria-pressed')).toBe('true')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
-    expect(sourceNames(sources)).not.toContain('CM_CLO_OFFER.e_fdk_mt')
+    await user.click(contractId)
+    expect(contractId.getAttribute('aria-pressed')).toBe('true')
+    expect(eventCode.getAttribute('aria-pressed')).toBe('false')
+    await waitFor(() => expect(sourceNames(sources)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_OFFER_ID']))
+    expect(offerId.getAttribute('aria-pressed')).toBe('false')
 
-    await user.click(leaf)
-    expect(leaf.getAttribute('aria-pressed')).toBe('true')
-    expect(chain.getAttribute('aria-pressed')).toBe('false')
-    await waitFor(() => expect(sourceNames(sources)).toEqual(['CM_CLO_OFFER.e_fdk_mt']))
-
-    // The user stays at this level: the same two cards remain, the target is unchanged.
-    expect(getCards(choices)).toHaveLength(2)
+    // The user stays at this level: the same three cards remain, the target is unchanged.
+    expect(getCards(choices)).toHaveLength(3)
     expect(target.textContent).toBe(targetBefore)
   })
 
   it('clicking the selected card again clears the selection and restores all sources', async () => {
-    const { user, choices, sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
+    const { user, choices, sources } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
     const cards = await findCards(choices)
     await user.click(cards[0])
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(1))
     await user.click(cards[0])
     expect(cards[0].getAttribute('aria-pressed')).toBe('false')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(2))
   })
 
   it('explains a direct mapping that has no intermediate steps', async () => {
