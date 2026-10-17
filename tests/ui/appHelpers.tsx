@@ -9,7 +9,7 @@ export const optionTexts = (el: HTMLSelectElement) => Array.from(el.options).map
 
 export const cardsIn = (scope: HTMLElement) => {
   const list = within(scope).queryByRole('list', { name: 'Upstream mappings' })
-  return list ? within(list).queryAllByRole('listitem').map((li) => within(li).getByRole('button')) : []
+  return list ? within(list).queryAllByRole('listitem').map((li) => li.querySelector('button.card') as HTMLElement) : []
 }
 export const cardTitles = (scope: HTMLElement) => cardsIn(scope).map((c) => c.querySelector('.card-title')?.textContent)
 export const pressed = (card: HTMLElement) => card.getAttribute('aria-pressed') === 'true'
@@ -110,4 +110,13 @@ export function treeClient() {
     }),
   }
   return { client, upstreamCalls, depthCalls }
+}
+
+type App = Awaited<ReturnType<typeof openApp>>
+
+/** Clicks Next and waits for the next level, because its choices are fetched. */
+export async function advance(app: App, hop: number) {
+  await app.user.click(app.next())
+  await waitFor(() => expect(hopContext(app.choices)).toContain(`Hop ${hop} `))
+  await waitFor(() => expect(cardsIn(app.choices).length).toBeGreaterThan(0))
 }

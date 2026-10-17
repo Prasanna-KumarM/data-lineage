@@ -1,9 +1,10 @@
-import { useReducer, useRef } from 'react'
+import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
 import { ApiError, type ApiClient } from '../api/client'
 import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types'
 import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
 import { ChoiceList } from './ChoiceList'
+import { DetailDrawer } from './DetailDrawer'
 import { Breadcrumb, HopRail } from './HopRail'
 import { SourceList } from './SourceList'
 import { TargetPanel } from './TargetPanel'
@@ -58,6 +59,19 @@ function Session({
   const depth = nav.path.length
   const parent = nav.path[depth - 1]
   const parentKey = parent?.step_id ?? 'root'
+
+  // The drawer only describes a mapping; it never changes where the user is in the lineage.
+  const [detailStepId, setDetailStepId] = useState<string | null>(null)
+  const [developer, setDeveloper] = useState(false)
+  const detailTrigger = useRef<HTMLElement | null>(null)
+  const closeDetails = useCallback(() => {
+    setDetailStepId(null)
+    detailTrigger.current?.focus()
+  }, [])
+  // Moving to another level hides the mapping the drawer was describing.
+  useEffect(() => {
+    setDetailStepId(null)
+  }, [depth])
 
   // Lists already seen are kept so that Back shows exactly what was there before.
   const listCache = useRef(new Map<string, Choice[]>())
@@ -124,8 +138,13 @@ function Session({
             <ChoiceList
               choices={list.data}
               selectedStepId={nav.selectedStepId}
+              detailStepId={detailStepId}
               atRoot={depth === 0}
               onSelect={(stepId) => dispatch({ type: 'select', stepId })}
+              onDetails={(stepId, trigger) => {
+                detailTrigger.current = trigger
+                setDetailStepId(stepId)
+              }}
             />
           )}
         </div>
@@ -161,6 +180,16 @@ function Session({
         {sources.status === 'error' && list.status !== 'error' && <Failure error={sources.error} onRetry={sources.reload} />}
         {sources.status === 'success' && <SourceList sources={sources.data} />}
       </section>
+
+      {detailStepId && (
+        <DetailDrawer
+          client={client}
+          stepId={detailStepId}
+          developer={developer}
+          onDeveloperChange={setDeveloper}
+          onClose={closeDetails}
+        />
+      )}
     </div>
   )
 }

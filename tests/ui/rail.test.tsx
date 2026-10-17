@@ -1,6 +1,6 @@
 import { waitFor, within } from '@testing-library/react'
 import type { ApiClient } from '../../ui/src/api/client'
-import { cardsIn, hopContext, openApp, pressed, railGlyphs, treeClient } from './appHelpers'
+import { advance, cardsIn, hopContext, openApp, pressed, railGlyphs, treeClient } from './appHelpers'
 import { describeReal, realClient } from './helpers'
 
 const FILLED = '●'
@@ -10,15 +10,6 @@ const MORE = '⋯'
 
 const crumbs = (nav: HTMLElement) => Array.from(nav.querySelectorAll('li')).map((li) => li.textContent)
 const summary = (rail: HTMLElement) => rail.querySelector('.rail-summary')?.textContent
-
-type App = Awaited<ReturnType<typeof openApp>>
-
-// Waits for the next level to be shown, because its choices are fetched.
-async function advance(app: App, hop: number) {
-  await app.user.click(app.next())
-  await waitFor(() => expect(hopContext(app.choices)).toContain(`Hop ${hop} `))
-  await waitFor(() => expect(cardsIn(app.choices).length).toBeGreaterThan(0))
-}
 
 describeReal('hop progress rail on the real SP_CLO lineage', () => {
   it('shows no dots and no depth request until a branch is selected', async () => {

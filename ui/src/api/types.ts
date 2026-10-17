@@ -87,3 +87,41 @@ export interface RemainingDepth {
   remaining_hops_min: number
   remaining_hops_max: number
 }
+
+export interface Endpoint {
+  object_id: string | null
+  object_name: string | null
+  object_type: string | null
+  column_id: string | null
+  column_name: string | null
+}
+
+export interface Dependency {
+  operand_order: number | null
+  object_id: string | null
+  column_id: string | null
+  object_name: string | null
+  object_type: string | null
+  column_name: string | null
+}
+
+export interface StepDetail {
+  step_id: string
+  path_id: string
+  lineage_level: number
+  hop_count: number | null
+  relation_id: string
+  relation_type: string
+  source: Endpoint
+  target: Endpoint
+  component: { component_id: string | null; component_name: string | null; component_type: string | null }
+  business_process: BusinessProcess
+  confidence: { confidence_class: string | null; reason_code: string | null; reason: string | null }
+  traversal_path: string | null
+  expression_id: string | null
+  driving_expression: string | null
+  result_expression: string | null
+  dependencies: Dependency[]
+  persistence: { status: string; reason_code: string | null; reason: string | null } | null
+  step_ids: string[]
+}
