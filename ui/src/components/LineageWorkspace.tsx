@@ -4,6 +4,7 @@ import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types
 import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
 import { ChoiceList } from './ChoiceList'
+import { Breadcrumb, HopRail } from './HopRail'
 import { SourceList } from './SourceList'
 import { TargetPanel } from './TargetPanel'
 
@@ -86,6 +87,12 @@ function Session({
   )
   const sources = activeId === null ? allSources : branchSources
 
+  // Remaining depth is only worked out for the branch being followed, never for every card.
+  const remainingDepth = useAsync(
+    activeId ? (signal) => client.remainingDepth(activeId, signal) : null,
+    `${sessionKey}:depth:${activeId}`,
+  )
+
   const selected = list.status === 'success' ? list.data.find((c) => c.step_id === nav.selectedStepId) : undefined
   const canNext = Boolean(selected?.has_more_upstream)
   const endpoint = parent ? `${parent.source_object_name}.${parent.source_column_name}` : `${object.object_name}.${column.column_name}`
@@ -94,34 +101,57 @@ function Session({
     <div className="workspace" role="region" aria-label="Lineage session">
       <TargetPanel project={target.project} object={object} allObjects={allObjects} column={column} />
 
-      <section className="panel" aria-label="Upstream choices">
-        <h2 className="panel-title">Upstream choices</h2>
-        <p className="context">
-          Hop {depth + 1} · upstream of <strong>{endpoint}</strong>
-        </p>
-        {list.status === 'loading' && <Loading text="Loading lineage…" />}
-        {list.status === 'error' && <Failure error={list.error} onRetry={list.reload} />}
-        {list.status === 'success' && (
-          <ChoiceList
-            choices={list.data}
-            selectedStepId={nav.selectedStepId}
-            atRoot={depth === 0}
-            onSelect={(stepId) => dispatch({ type: 'select', stepId })}
-          />
-        )}
-        <div className="nav-actions">
-          <button type="button" onClick={() => dispatch({ type: 'back' })} disabled={depth === 0}>
-            Back
-          </button>
-          <button
-            type="button"
-            className="primary"
-            onClick={() => selected && dispatch({ type: 'next', choice: selected })}
-            disabled={!canNext}
-            title={selected && !canNext ? 'Nothing further upstream' : undefined}
-          >
-            Next
-          </button>
+      <section className="panel choices-panel" aria-label="Upstream choices">
+        <div className="panel-head">
+          <h2 className="panel-title">Upstream choices</h2>
+          <span className="hop-badge">Hop {depth + 1}</span>
+        </div>
+
+        <div className="block">
+          <h3 className="block-title">Your path</h3>
+          <HopRail path={nav.path} selected={selected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
+          <Breadcrumb targetLabel={`${object.object_name}.${column.column_name}`} path={nav.path} selected={selected} />
+        </div>
+
+        <div className="block">
+          <h3 className="block-title">Choose the next mapping</h3>
+          <p className="context">
+            Upstream of <strong>{endpoint}</strong>
+          </p>
+          {list.status === 'loading' && <Loading text="Loading lineage…" />}
+          {list.status === 'error' && <Failure error={list.error} onRetry={list.reload} />}
+          {list.status === 'success' && (
+            <ChoiceList
+              choices={list.data}
+              selectedStepId={nav.selectedStepId}
+              atRoot={depth === 0}
+              onSelect={(stepId) => dispatch({ type: 'select', stepId })}
+            />
+          )}
+        </div>
+
+        <div className="block actions">
+          <div className="nav-actions">
+            <button type="button" onClick={() => dispatch({ type: 'back' })} disabled={depth === 0}>
+              Back
+            </button>
+            <button
+              type="button"
+              className="primary"
+              onClick={() => selected && dispatch({ type: 'next', choice: selected })}
+              disabled={!canNext}
+              title={selected && !canNext ? 'Nothing further upstream' : undefined}
+            >
+              Next
+            </button>
+          </div>
+          <p className="action-hint">
+            {!selected
+              ? 'Select a mapping to continue.'
+              : canNext
+                ? 'Next moves into the selected mapping.'
+                : 'Nothing further upstream from this mapping.'}
+          </p>
         </div>
       </section>
 

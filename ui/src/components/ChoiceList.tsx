@@ -28,8 +28,8 @@ export function ChoiceList({ choices, selectedStepId, atRoot, onSelect }: Props)
   const allTerminal = choices.every((c) => !c.has_more_upstream)
   return (
     <>
-      {allTerminal && <p className="status note">{terminalNote(choices.length, atRoot)}</p>}
-      <ul className="cards">
+      {allTerminal && <p className="callout">{terminalNote(choices.length, atRoot)}</p>}
+      <ul className="cards" aria-label="Upstream mappings">
       {choices.map((choice) => {
         const selected = choice.step_id === selectedStepId
         return (
