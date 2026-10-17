@@ -5,7 +5,7 @@ import pytest
 
 from conftest import ROOT
 
-sys.path.insert(0, str(ROOT / "api"))
+sys.path.insert(0, str(ROOT / "src" / "api"))
 
 from lineage_api.catalog import (  # noqa: E402
     list_projects,

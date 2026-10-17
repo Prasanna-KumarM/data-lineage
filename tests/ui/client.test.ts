@@ -1,4 +1,4 @@
-import { ApiError, createApiClient } from '../../ui/src/api/client'
+import { ApiError, createApiClient } from '../../src/ui/src/api/client'
 import { apiBase, describeReal, realClient } from './helpers'
 
 describeReal('api client against the real lineage API', () => {

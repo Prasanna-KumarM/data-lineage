@@ -40,7 +40,7 @@ export default async function setup() {
   const port = await freePort()
   const base = `http://127.0.0.1:${port}`
   const child = spawn(python, ['-m', 'uvicorn', 'lineage_api.app:app', '--host', '127.0.0.1', '--port', String(port)], {
-    cwd: path.join(root, 'api'),
+    cwd: path.join(root, 'src/api'),
     env: { ...process.env, LINEAGE_DB: db },
     stdio: 'ignore',
   })

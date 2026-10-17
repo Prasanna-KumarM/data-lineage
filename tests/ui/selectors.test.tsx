@@ -1,8 +1,8 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from '../../ui/src/App'
-import type { ApiClient } from '../../ui/src/api/client'
-import type { TargetColumn, TargetObject } from '../../ui/src/api/types'
+import App from '../../src/ui/src/App'
+import type { ApiClient } from '../../src/ui/src/api/client'
+import type { TargetColumn, TargetObject } from '../../src/ui/src/api/types'
 import { describeReal, realClient } from './helpers'
 
 const select = (name: string) => screen.getByLabelText(name) as HTMLSelectElement
@@ -169,7 +169,7 @@ describe('selector workflow edge cases with a scripted client', () => {
   })
 
   it('shows the API message when loading targets fails', async () => {
-    const { ApiError } = await import('../../ui/src/api/client')
+    const { ApiError } = await import('../../src/ui/src/api/client')
     const user = userEvent.setup()
     render(<App client={scripted({ targets: async () => { throw new ApiError(503, 'DATABASE_UNAVAILABLE', 'The lineage database is unavailable.') } })} />)
     await waitFor(() => expect(optionTexts(select('Project'))).toHaveLength(3))

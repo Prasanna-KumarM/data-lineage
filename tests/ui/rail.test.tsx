@@ -1,5 +1,5 @@
 import { waitFor, within } from '@testing-library/react'
-import type { ApiClient } from '../../ui/src/api/client'
+import type { ApiClient } from '../../src/ui/src/api/client'
 import { advance, cardsIn, hopContext, openApp, pressed, railGlyphs, treeClient } from './appHelpers'
 import { describeReal, realClient } from './helpers'
 

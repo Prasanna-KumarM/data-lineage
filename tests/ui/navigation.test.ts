@@ -1,10 +1,10 @@
-import type { Choice } from '../../ui/src/api/types'
+import type { Choice } from '../../src/ui/src/api/types'
 import {
   activeStepId,
   initialNavigation,
   navigationReducer,
   type NavigationState,
-} from '../../ui/src/state/navigation'
+} from '../../src/ui/src/state/navigation'
 
 const choice = (id: string): Choice => ({
   step_id: id, relation_id: `r-${id}`, relation_type: 'EXPLICIT_INATTR',
