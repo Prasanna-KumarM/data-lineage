@@ -75,3 +75,10 @@ def list_target_columns(
         (project, object_id),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def search_target_objects(conn: sqlite3.Connection, project: str, query: str) -> list[dict[str, Any]]:
+    """Target objects of the project whose name contains the text, ignoring case; no text lists all."""
+    needle = query.strip().casefold()
+    objects = list_target_objects(conn, project)
+    return [o for o in objects if needle in o["object_name"].casefold()] if needle else objects

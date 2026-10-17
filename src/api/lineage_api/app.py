@@ -9,7 +9,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from lineage_api import schemas
-from lineage_api.catalog import list_projects, list_target_columns, list_target_objects
+from lineage_api.catalog import list_projects, list_target_columns, list_target_objects, search_target_objects
 from lineage_api.db import (
     ENV_DB_PATH,
     DatabaseNotConfigured,
@@ -21,6 +21,7 @@ from lineage_api.db import (
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
 from lineage_api.sources import TargetSourceCache, sources_for_step
+from lineage_api.summary import TableSummaryCache
 from lineage_api.upstream import StepNotFound, get_root_choices, get_upstream_choices
 
 
@@ -66,6 +67,7 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="Data Lineage API", version="1.0.0")
     app.state.db_path = db_path
     app.state.source_cache = TargetSourceCache()
+    app.state.summary_cache = TableSummaryCache()
 
     @app.exception_handler(ApiError)
     def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -115,6 +117,18 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
     def targets(project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         _require_project(conn, project)
         return list_target_objects(conn, project)
+
+    @app.get("/targets/search", response_model=list[schemas.TargetObjectOut])
+    def search_targets(project: str = Query(...), q: str = "", conn: sqlite3.Connection = Depends(get_conn)):
+        _require_project(conn, project)
+        return search_target_objects(conn, project, q)
+
+    @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
+    def table_summary(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        _require_object(conn, project, object_id)
+        summary = app.state.summary_cache.get(conn, project, object_id)
+        obj = next(o for o in list_target_objects(conn, project) if o["object_id"] == object_id)
+        return {**summary, "object": obj}
 
     @app.get("/targets/{object_id}/columns", response_model=list[schemas.TargetColumnOut])
     def target_columns(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
