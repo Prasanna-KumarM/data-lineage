@@ -24,6 +24,13 @@ async function open(objectName: string, columnName: string) {
   }
 }
 
+const getCards = (scope: HTMLElement) =>
+  within(scope).getAllByRole('listitem').map((li) => within(li).getByRole('button'))
+const findCards = async (scope: HTMLElement) => {
+  await within(scope).findAllByRole('listitem')
+  return getCards(scope)
+}
+
 const sourceNames = (sources: HTMLElement) =>
   within(sources).getAllByRole('listitem').map((li) => li.querySelector('.source-name')?.textContent)
 
@@ -56,7 +63,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('shows terminal choices and an inferred relation distinctly', async () => {
     const { choices } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     expect(cards).toHaveLength(3)
     const text = cards.map((c) => c.textContent ?? '')
     expect(text.filter((t) => t.includes('Ultimate source · nothing further upstream'))).toHaveLength(2)
@@ -104,7 +111,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
     const { user, target, choices, sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
     await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
     const targetBefore = target.textContent
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     expect(cards).toHaveLength(2)
 
     const chain = cards.find((c) => c.textContent?.includes('1 upstream choice'))!
@@ -121,13 +128,13 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
     await waitFor(() => expect(sourceNames(sources)).toEqual(['CM_CLO_OFFER.e_fdk_mt']))
 
     // The user stays at this level: the same two cards remain, the target is unchanged.
-    expect(within(choices).getAllByRole('button')).toHaveLength(2)
+    expect(getCards(choices)).toHaveLength(2)
     expect(target.textContent).toBe(targetBefore)
   })
 
   it('clicking the selected card again clears the selection and restores all sources', async () => {
     const { user, choices, sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     await user.click(cards[0])
     await user.click(cards[0])
     expect(cards[0].getAttribute('aria-pressed')).toBe('false')
@@ -136,7 +143,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('explains a direct mapping that has no intermediate steps', async () => {
     const { choices, sources } = await open('PAR_GFRS_CLO_TRADES', 'OFR_ACCEPTANCE_DATE')
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     expect(cards).toHaveLength(1)
     expect(cards[0].textContent).toContain('Ultimate source')
     expect(cards[0].textContent).toContain('nothing further upstream')
@@ -146,28 +153,28 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
 
   it('shows no direct-mapping note when a choice continues upstream', async () => {
     const { choices } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    await within(choices).findAllByRole('button')
+    await findCards(choices)
     expect(choices.textContent).not.toContain('no intermediate steps')
     const mde = await open('AR_PAR_LOAN_EVENTS', 'MDE_CODE')
-    await within(mde.choices).findAllByRole('button')
+    await findCards(mde.choices)
     expect(mde.choices.textContent).not.toContain('no intermediate steps')
   })
 
   it('does not move into a branch on its own', async () => {
     const { choices } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     expect(cards.every((c) => c.getAttribute('aria-pressed') === 'false')).toBe(true)
   })
 
   it('discards the branch selection when another target is chosen', async () => {
     const { user, choices } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
-    const cards = await within(choices).findAllByRole('button')
+    const cards = await findCards(choices)
     await user.click(cards[0])
     await user.selectOptions(select('Target Object'), 'AR_PAR_LOAN_EVENTS')
     await waitFor(() => expect(optionTexts(select('Target Column')).length).toBeGreaterThan(1))
     await user.selectOptions(select('Target Column'), 'MDE_CODE')
     const workspace = await screen.findByRole('region', { name: 'Lineage session' })
-    const next = await within(workspace).findAllByRole('button')
+    const next = await findCards(within(workspace).getByRole('region', { name: 'Upstream choices' }))
     expect(next.every((c) => c.getAttribute('aria-pressed') === 'false')).toBe(true)
   })
 })

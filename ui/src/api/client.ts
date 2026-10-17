@@ -24,6 +24,7 @@ export interface ApiClient {
   targets(project: string, signal?: AbortSignal): Promise<TargetObject[]>
   columns(project: string, objectId: string, signal?: AbortSignal): Promise<TargetColumn[]>
   rootChoices(target: TargetRef, signal?: AbortSignal): Promise<UpstreamResponse>
+  upstream(stepId: string, signal?: AbortSignal): Promise<UpstreamResponse>
   ultimateSources(target: TargetRef, signal?: AbortSignal, stepId?: string): Promise<UltimateSourcesResponse>
 }
 
@@ -70,6 +71,7 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl }: ApiClien
     columns: (project, objectId, signal) =>
       get(`/targets/${encodeURIComponent(objectId)}/columns`, { project }, signal),
     rootChoices: (target, signal) => get('/lineage/upstream', targetParams(target), signal),
+    upstream: (stepId, signal) => get('/lineage/upstream', { step_id: stepId }, signal),
     ultimateSources: (target, signal, stepId) =>
       get('/lineage/ultimate-sources', { ...targetParams(target), ...(stepId ? { step_id: stepId } : {}) }, signal),
   }
