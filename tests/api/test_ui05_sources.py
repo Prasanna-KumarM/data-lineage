@@ -237,3 +237,12 @@ def test_cache_clear(sp_clo):
     cache.clear("s1")
     cache.get(sp_clo, "s1", "SP_CLO", *a)
     assert cache.compute_count == 2
+
+
+def test_terminal_flag_hides_descendants_from_target_sources(sp_clo):
+    obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
+    chain = next(r for r in get_root_choices(sp_clo, "SP_CLO", obj, col) if r["upstream_choice_count"] == 1)
+    sp_clo.execute("UPDATE business_lineage_step SET is_terminal = 1 WHERE step_id = ?", (chain["step_id"],))
+    resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
+    assert _names(sources_for_step(resolved)) == ["CM_CLO_OFFER.e_fdk_mt"]
+    assert set(resolved["branch_terminals"]) == {r["step_id"] for r in get_root_choices(sp_clo, "SP_CLO", obj, col)}

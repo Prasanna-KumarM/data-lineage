@@ -3,7 +3,7 @@ import os
 import sqlite3
 from typing import Iterator, Optional
 
-from fastapi import Depends, FastAPI, Query, Request
+from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -20,7 +20,7 @@ from lineage_api.db import (
 )
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
-from lineage_api.sources import resolve_terminal_sources, sources_for_step
+from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.upstream import StepNotFound, get_root_choices, get_upstream_choices
 
 
@@ -65,6 +65,7 @@ def _require_column(conn: sqlite3.Connection, project: str, object_id: str, colu
 def create_app(db_path: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="Data Lineage API", version="1.0.0")
     app.state.db_path = db_path
+    app.state.source_cache = TargetSourceCache()
 
     @app.exception_handler(ApiError)
     def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -142,10 +143,11 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
         object_id: str = Query(...),
         column_id: str = Query(...),
         step_id: Optional[str] = None,
+        session_id: str = Header("shared", alias="X-Session-Id", max_length=128),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         _require_column(conn, project, object_id, column_id)
-        resolved = resolve_terminal_sources(conn, project, object_id, column_id)
+        resolved = app.state.source_cache.get(conn, session_id, project, object_id, column_id)
         return {
             "project": project,
             "object_id": object_id,

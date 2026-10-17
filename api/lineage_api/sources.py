@@ -6,6 +6,8 @@ touching the database again.
 """
 import os
 import sqlite3
+import threading
+from collections import OrderedDict
 from typing import Any
 
 from lineage_api.upstream import StepNotFound
@@ -40,15 +42,31 @@ def resolve_terminal_sources(
             (s["path_id"], s["lineage_level"], s["target_object_id"], s["target_column_id"]), []
         ).append(s["step_id"])
 
+    by_id = {s["step_id"]: s for s in steps}
+
+    def kids_of(s: sqlite3.Row) -> list[str]:
+        if s["is_terminal"]:
+            return []
+        return children.get(
+            (s["path_id"], s["lineage_level"] + 1, s["source_object_id"], s["source_column_id"]), []
+        )
+
+    # A step flagged terminal hides its descendants, so only steps reachable from a root count.
+    reachable: set[str] = set()
+    stack = [s["step_id"] for s in steps if s["lineage_level"] == 0]
+    while stack:
+        step_id = stack.pop()
+        if step_id not in reachable:
+            reachable.add(step_id)
+            stack.extend(kids_of(by_id[step_id]))
+
     terminals: dict[str, dict[str, Any]] = {}
     below: dict[str, frozenset[str]] = {}
 
     # Deepest steps first so every child is resolved before its parent.
-    for s in sorted(steps, key=lambda r: -r["lineage_level"]):
-        kids = children.get(
-            (s["path_id"], s["lineage_level"] + 1, s["source_object_id"], s["source_column_id"]), []
-        )
-        if s["is_terminal"] or not kids:
+    for s in sorted((by_id[i] for i in reachable), key=lambda r: -r["lineage_level"]):
+        kids = kids_of(s)
+        if not kids:
             tid = _terminal_id(s["source_object_id"], s["source_column_id"])
             entry = terminals.setdefault(
                 tid,
@@ -110,8 +128,10 @@ def db_fingerprint(conn: sqlite3.Connection) -> tuple:
 class TargetSourceCache:
     """Holds the resolved terminal sources of the active target for each session."""
 
-    def __init__(self) -> None:
-        self._entries: dict[str, tuple[tuple, tuple, dict[str, Any]]] = {}
+    def __init__(self, max_sessions: int = 256) -> None:
+        self._entries: OrderedDict[str, tuple[tuple, tuple, dict[str, Any]]] = OrderedDict()
+        self._max_sessions = max_sessions
+        self._lock = threading.Lock()
         self.compute_count = 0
 
     def get(
@@ -119,16 +139,22 @@ class TargetSourceCache:
     ) -> dict[str, Any]:
         fingerprint = db_fingerprint(conn)
         target = (project, object_id, column_id)
-        cached = self._entries.get(session_id)
-        if cached and cached[0] == fingerprint and cached[1] == target:
-            return cached[2]
-        resolved = resolve_terminal_sources(conn, project, object_id, column_id)
-        self.compute_count += 1
-        self._entries[session_id] = (fingerprint, target, resolved)
-        return resolved
+        with self._lock:
+            cached = self._entries.get(session_id)
+            if cached and cached[0] == fingerprint and cached[1] == target:
+                self._entries.move_to_end(session_id)
+                return cached[2]
+            resolved = resolve_terminal_sources(conn, project, object_id, column_id)
+            self.compute_count += 1
+            self._entries[session_id] = (fingerprint, target, resolved)
+            self._entries.move_to_end(session_id)
+            while len(self._entries) > self._max_sessions:
+                self._entries.popitem(last=False)
+            return resolved
 
     def clear(self, session_id: str | None = None) -> None:
-        if session_id is None:
-            self._entries.clear()
-        else:
-            self._entries.pop(session_id, None)
+        with self._lock:
+            if session_id is None:
+                self._entries.clear()
+            else:
+                self._entries.pop(session_id, None)
