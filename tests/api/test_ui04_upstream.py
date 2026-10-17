@@ -182,3 +182,5 @@ def test_extractor_populated_is_terminal_is_honoured(sp_clo):
         if c["step_id"] == branching["step_id"]
     )
     assert again["is_terminal"] is True and again["has_more_upstream"] is False
+    assert again["upstream_choice_count"] == 0
+    assert get_upstream_choices(sp_clo, branching["step_id"]) == []

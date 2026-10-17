@@ -24,7 +24,8 @@ _CHOICE_SELECT = """
            (SELECT COUNT(*) FROM business_lineage_step g
              WHERE g.path_id = c.path_id AND g.lineage_level = c.lineage_level + 1
                AND g.target_object_id = c.source_object_id
-               AND g.target_column_id = c.source_column_id) AS upstream_choice_count
+               AND g.target_column_id = c.source_column_id
+               AND c.is_terminal = 0) AS upstream_choice_count
 """
 
 _ORDER = " ORDER BY c.source_object_name, c.source_column_name, c.step_id"
@@ -68,7 +69,7 @@ def get_upstream_choices(conn: sqlite3.Connection, step_id: str) -> list[dict[st
                ON c.path_id = p.path_id AND c.lineage_level = p.lineage_level + 1
               AND c.target_object_id = p.source_object_id
               AND c.target_column_id = p.source_column_id
-             WHERE p.step_id = ?"""
+             WHERE p.step_id = ? AND p.is_terminal = 0"""
         + _ORDER,
         (step_id,),
     ).fetchall()
