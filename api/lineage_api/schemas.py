@@ -67,6 +67,8 @@ class TerminalSourceOut(BaseModel):
     object_name: str
     column_name: str
     object_type: Optional[str] = None
+    condition: Optional[str] = None
+    result_expression: Optional[str] = None
     leaf_relation_types: list[str]
 
 

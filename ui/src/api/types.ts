@@ -57,6 +57,8 @@ export interface TerminalSource {
   object_name: string
   column_name: string
   object_type: string | null
+  condition: string | null
+  result_expression: string | null
   leaf_relation_types: string[]
 }
 

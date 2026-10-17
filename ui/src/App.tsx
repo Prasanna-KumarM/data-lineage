@@ -1,9 +1,8 @@
 import { useMemo, useReducer } from 'react'
 import { createApiClient, newSessionId, type ApiClient } from './api/client'
 import type { TargetRef } from './api/types'
-import { LineageSessionPanel } from './components/LineageSessionPanel'
+import { LineageWorkspace } from './components/LineageWorkspace'
 import { TargetSelectors } from './components/TargetSelectors'
-import { objectLabel } from './components/objectLabel'
 import { useTargetCatalog } from './hooks/useTargetCatalog'
 import { emptySelection, selectionReducer } from './state/selection'
 
@@ -25,10 +24,6 @@ export default function App({ client: injected }: Props) {
     selection.project && object && column
       ? { project: selection.project, objectId: object.object_id, columnId: column.column_id }
       : null
-  const title =
-    object && column && catalog.targets.status === 'success'
-      ? `${objectLabel(object, catalog.targets.data)}.${column.column_name}`
-      : null
 
   return (
     <div className="app">
@@ -37,7 +32,13 @@ export default function App({ client: injected }: Props) {
         <TargetSelectors catalog={catalog} selection={selection} dispatch={dispatch} />
       </header>
       <main>
-        <LineageSessionPanel client={client} target={target} title={title} />
+        <LineageWorkspace
+          client={client}
+          target={target}
+          object={object}
+          column={column}
+          allObjects={catalog.targets.status === 'success' ? catalog.targets.data : []}
+        />
       </main>
     </div>
   )
