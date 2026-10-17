@@ -1,5 +1,5 @@
 """Typed response schemas; the frontend contract is independent of SQLite table layout."""
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel
 
@@ -154,3 +154,54 @@ class ErrorBody(BaseModel):
 
 class ErrorOut(BaseModel):
     error: ErrorBody
+
+
+class RouteStepOut(BaseModel):
+    endpoint: str
+    relation_type: str
+    component_name: Optional[str] = None
+
+
+class SummarySourceOut(BaseModel):
+    terminal_id: str
+    object_name: str
+    column_name: str
+    object_type: Optional[str] = None
+    kind: Literal["column", "constant", "function", "not_persisted"]
+    condition: Optional[str] = None
+    result_expression: Optional[str] = None
+    leaf_relation_types: list[str]
+    hops_min: int
+    hops_max: int
+    route_count: int
+    route: list[RouteStepOut]
+
+
+class SummaryFlagsOut(BaseModel):
+    constant: bool
+    function: bool
+    not_persisted: bool
+    case_branches: bool
+    inferred: bool
+
+
+class SummaryColumnOut(BaseModel):
+    column_id: str
+    column_name: str
+    has_lineage: bool
+    source_count: int
+    hops_min: Optional[int] = None
+    hops_max: Optional[int] = None
+    flags: SummaryFlagsOut
+    sources: list[SummarySourceOut]
+
+
+class SummaryTotalsOut(BaseModel):
+    columns: int
+    with_lineage: int
+
+
+class TableSummaryOut(BaseModel):
+    object: TargetObjectOut
+    totals: SummaryTotalsOut
+    columns: list[SummaryColumnOut]

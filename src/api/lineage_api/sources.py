@@ -10,6 +10,7 @@ import threading
 from collections import OrderedDict
 from typing import Any
 
+from lineage_api.graph import StepGraph
 from lineage_api.upstream import StepNotFound
 
 _STEPS_SQL = """
@@ -39,29 +40,9 @@ def resolve_terminal_sources(
     """Terminal sources of a target column and, for each step, the terminals below it."""
     steps = conn.execute(_STEPS_SQL, (project, object_id, column_id)).fetchall()
 
-    children: dict[tuple, list[str]] = {}
-    for s in steps:
-        children.setdefault(
-            (s["business_process_id"], s["lineage_level"], s["target_object_id"], s["target_column_id"]), []
-        ).append(s["step_id"])
-
-    by_id = {s["step_id"]: s for s in steps}
-
-    def kids_of(s: sqlite3.Row) -> list[str]:
-        if s["is_terminal"]:
-            return []
-        return children.get(
-            (s["business_process_id"], s["lineage_level"] + 1, s["source_object_id"], s["source_column_id"]), []
-        )
-
-    # A step flagged terminal hides its descendants, so only steps reachable from a root count.
-    reachable: set[str] = set()
-    stack = [s["step_id"] for s in steps if s["lineage_level"] == 0]
-    while stack:
-        step_id = stack.pop()
-        if step_id not in reachable:
-            reachable.add(step_id)
-            stack.extend(kids_of(by_id[step_id]))
+    graph = StepGraph(steps)
+    by_id, kids_of = graph.by_id, graph.kids_of
+    reachable = graph.reachable()
 
     terminals: dict[str, dict[str, Any]] = {}
     below: dict[str, frozenset[str]] = {}
