@@ -69,10 +69,14 @@ def _brute_force_terminals(conn, step_id):
     kids = get_upstream_choices(conn, step_id)
     if not kids:
         row = conn.execute(
-            "SELECT source_object_id, source_column_id FROM business_lineage_step WHERE step_id=?",
+            """SELECT source_object_id, source_column_id, driving_expression, result_expression
+               FROM business_lineage_step WHERE step_id=?""",
             (step_id,),
         ).fetchone()
-        return {f"{row[0]}|{row[1]}"}
+        base = f"{row[0]}|{row[1]}"
+        if row[2] is None and row[3] is None:
+            return {base}
+        return {f"{base}|{row[2] or ''}|{row[3] or ''}"}
     out = set()
     for k in kids:
         out |= _brute_force_terminals(conn, k["step_id"])
@@ -147,16 +151,38 @@ def test_sp_clo_fdk_mt_branch_filtering(sp_clo):
         assert _names(only) == [f'{sibling["source_object_name"]}.{sibling["source_column_name"]}']
 
 
-def test_sp_clo_expression_branches_share_one_terminal(sp_clo):
+def test_sp_clo_expression_branches_stay_separate_terminals_with_their_condition(sp_clo):
     obj, col = _target(sp_clo, "AR_PAR_LOAN_EVENTS", "MDE_CODE")
     resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
-    assert len(resolved["terminal_sources"]) == 1
-    terminal = resolved["terminal_sources"][0]
-    assert terminal["object_type"] == "CONSTANT"
-    assert terminal["leaf_relation_types"] == ["EXPRESSION"]
+    terminals = resolved["terminal_sources"]
+    assert [(t["condition"], t["result_expression"]) for t in terminals] == [
+        ('AEF_EVENT_CODE=="E011"', '"CLO"'),
+        ("ELSE", '"CLO"'),
+    ]
+    assert len({(t["object_id"], t["column_id"]) for t in terminals}) == 1
+    assert all(t["object_type"] == "CONSTANT" and t["leaf_relation_types"] == ["EXPRESSION"] for t in terminals)
     (root,) = get_root_choices(sp_clo, "SP_CLO", obj, col)
     for branch in get_upstream_choices(sp_clo, root["step_id"]):
-        assert sources_for_step(resolved, branch["step_id"]) == [terminal]
+        (only,) = sources_for_step(resolved, branch["step_id"])
+        assert only["condition"] == branch["driving_expression"]
+
+
+def test_sp_clo_pdt_code_shows_both_offer_branches(sp_clo):
+    obj, col = _target(sp_clo, "AR_PAR_LOAN_EVENTS", "PDT_CODE")
+    resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
+    assert [(_names([t])[0], t["condition"]) for t in resolved["terminal_sources"]] == [
+        ('"OFFER"."OFFER"', 'AEF_EVENT_CODE=="E011"'),
+        ('"OFFER"."OFFER"', "ELSE"),
+    ]
+    (root,) = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    assert len(sources_for_step(resolved, root["step_id"])) == 2
+
+
+def test_terminals_without_expressions_are_still_merged(sp_clo):
+    obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
+    resolved = resolve_terminal_sources(sp_clo, "SP_CLO", obj, col)
+    assert all(t["condition"] is None and t["result_expression"] is None for t in resolved["terminal_sources"])
+    assert len(resolved["terminal_sources"]) == 4
 
 
 def test_sp_clo_contract_id_three_branches(sp_clo):

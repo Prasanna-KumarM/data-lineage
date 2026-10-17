@@ -15,7 +15,8 @@ from lineage_api.upstream import StepNotFound
 _STEPS_SQL = """
     SELECT s.step_id, s.path_id, s.lineage_level, s.is_terminal, s.relation_type,
            s.source_object_id, s.source_column_id, s.source_object_name, s.source_column_name,
-           s.target_object_id, s.target_column_id, o.object_type
+           s.target_object_id, s.target_column_id, s.driving_expression, s.result_expression,
+           o.object_type
     FROM business_lineage_step s
     LEFT JOIN canonical_object o ON o.object_id = s.source_object_id
     WHERE s.path_id IN (
@@ -26,8 +27,12 @@ _STEPS_SQL = """
 """
 
 
-def _terminal_id(object_id: str, column_id: str) -> str:
-    return f"{object_id}|{column_id}"
+def _terminal_id(row: sqlite3.Row) -> str:
+    """Endpoint plus the leaf step's expression, so CASE branches to one endpoint stay distinct."""
+    base = f"{row['source_object_id']}|{row['source_column_id']}"
+    if row["driving_expression"] is None and row["result_expression"] is None:
+        return base
+    return f"{base}|{row['driving_expression'] or ''}|{row['result_expression'] or ''}"
 
 
 def resolve_terminal_sources(
@@ -67,7 +72,7 @@ def resolve_terminal_sources(
     for s in sorted((by_id[i] for i in reachable), key=lambda r: -r["lineage_level"]):
         kids = kids_of(s)
         if not kids:
-            tid = _terminal_id(s["source_object_id"], s["source_column_id"])
+            tid = _terminal_id(s)
             entry = terminals.setdefault(
                 tid,
                 {
@@ -77,6 +82,8 @@ def resolve_terminal_sources(
                     "object_name": s["source_object_name"],
                     "column_name": s["source_column_name"],
                     "object_type": s["object_type"],
+                    "condition": s["driving_expression"],
+                    "result_expression": s["result_expression"],
                     "leaf_relation_types": set(),
                 },
             )
@@ -87,7 +94,10 @@ def resolve_terminal_sources(
 
     ordered = sorted(
         terminals.values(),
-        key=lambda t: (t["object_name"], t["column_name"], t["object_id"], t["column_id"]),
+        key=lambda t: (
+            t["object_name"], t["column_name"], t["object_id"], t["column_id"],
+            t["condition"] or "", t["result_expression"] or "",
+        ),
     )
     for t in ordered:
         t["leaf_relation_types"] = sorted(t["leaf_relation_types"])

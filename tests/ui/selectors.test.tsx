@@ -44,9 +44,10 @@ describeReal('selector workflow on the real SP_CLO lineage', () => {
 
     await user.selectOptions(select('Target Column'), 'MDE_CODE')
     const panel = await screen.findByRole('region', { name: 'Lineage session' })
-    expect(within(panel).getByRole('heading').textContent).toBe('AR_PAR_LOAN_EVENTS.MDE_CODE')
-    expect(within(panel).getByTestId('choice-count').textContent).toBe('1')
-    expect(within(panel).getByTestId('source-count').textContent).toBe('1')
+    expect(within(within(panel).getByRole('region', { name: 'Target' })).getByText('MDE_CODE')).toBeTruthy()
+    expect(await within(panel).findAllByRole('button', { name: /e_product_group/ })).toHaveLength(1)
+    const sources = within(panel).getByRole('region', { name: 'Ultimate sources' })
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(2))
   })
 
   it('shows a branching target with its choices and ultimate sources', async () => {
@@ -57,8 +58,9 @@ describeReal('selector workflow on the real SP_CLO lineage', () => {
     await waitFor(() => expect(optionTexts(select('Target Column')).length).toBeGreaterThan(1))
     await user.selectOptions(select('Target Column'), 'FDK_MT')
     const panel = await screen.findByRole('region', { name: 'Lineage session' })
-    expect(within(panel).getByTestId('choice-count').textContent).toBe('2')
-    expect(within(panel).getByTestId('source-count').textContent).toBe('4')
+    expect(await within(panel).findAllByRole('button', { name: /e_fdk_mt/ })).toHaveLength(2)
+    const sources = within(panel).getByRole('region', { name: 'Ultimate sources' })
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
   })
 
   it('changing the target object resets the column and the lineage session', async () => {
