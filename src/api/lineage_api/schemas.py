@@ -6,6 +6,10 @@ from pydantic import BaseModel
 
 class ProjectOut(BaseModel):
     project_name: str
+    folder: Optional[str] = None
+    # Only sent when a project's database exists but cannot be used yet.
+    ready: Optional[bool] = None
+    problem: Optional[str] = None
 
 
 class BusinessProcessOut(BaseModel):

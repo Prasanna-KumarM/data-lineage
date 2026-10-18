@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Starts the lineage API and UI together; Ctrl+C stops both. A previous run still holding the ports is stopped first.
 # Usage: ./start.sh [--check] [--install-only] [--skip-install] [--migrate] [path/to/lineage.db]
+#   (no path)       serve every project found in outputs/<project>/lineage.db; choose one in the UI
+#   path/to/db      serve only that database
 #   --check         report what is installed and ready, then exit
 #   --install-only  install missing Python/UI packages, then exit
 #   --skip-install  never install anything; fail if something is missing
@@ -15,7 +17,8 @@ UI_DIR="$ROOT/src/ui"
 API_REQUIREMENTS="$API_DIR/requirements.txt"
 API_PORT="${API_PORT:-8000}"
 UI_PORT="${UI_PORT:-5173}"
-DB="${LINEAGE_DB:-$ROOT/outputs/SP_CLO/lineage.db}"
+DB="${LINEAGE_DB:-}"
+OUTPUTS="${LINEAGE_OUTPUTS_DIR:-$ROOT/outputs}"
 MIGRATE=0 CHECK=0 INSTALL_ONLY=0 SKIP_INSTALL=0
 
 for arg in "$@"; do
@@ -24,7 +27,7 @@ for arg in "$@"; do
     --check) CHECK=1 ;;
     --install-only) INSTALL_ONLY=1 ;;
     --skip-install) SKIP_INSTALL=1 ;;
-    -h|--help) sed -n '2,7p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     -*) echo "error: unknown option $arg" >&2; exit 1 ;;
     *) DB="$arg" ;;
   esac
@@ -50,9 +53,16 @@ ui_deps_ok() {
   fi
 }
 port_free() { ! lsof -nP -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
-db_exists() { [ -f "$DB" ]; }
+# One fixed database when a path is given, otherwise every outputs/<project>/lineage.db.
+db_files() {
+  if [ -n "$DB" ]; then [ -f "$DB" ] && echo "$DB"; return 0; fi
+  [ -d "$OUTPUTS" ] && find "$OUTPUTS" -mindepth 2 -maxdepth 2 -name lineage.db -type f | sort
+  return 0
+}
+db_exists() { [ -n "$(db_files)" ]; }
 db_has_business_process_columns() {
-  db_exists && venv_ok && "$PYTHON" - "$DB" <<'PY'
+  local file="${1:-$DB}"
+  [ -f "$file" ] && venv_ok && "$PYTHON" - "$file" <<'PY'
 import sqlite3, sys
 con = sqlite3.connect(f"file:{sys.argv[1]}?mode=ro", uri=True)
 cols = {r[1] for r in con.execute("PRAGMA table_info(business_lineage_step)")}
@@ -71,10 +81,17 @@ report() {
   elif [ -d "$UI_DIR/node_modules" ]; then show "UI packages" "out of date (will run npm ci)"; bad=1
   else show "UI packages" "missing (will run npm ci)"; bad=1; fi
   echo "Data"
-  if db_exists; then show "Database" "ok ($DB)"; else show "Database" "NOT FOUND ($DB)"; bad=1; fi
-  if venv_ok && db_exists; then
-    if db_has_business_process_columns; then show "business_process cols" "ok"
-    elif db_exists; then show "business_process cols" "missing (use --migrate)"; bad=1; fi
+  if ! db_exists; then
+    if [ -n "$DB" ]; then show "Database" "NOT FOUND ($DB)"; else show "Databases" "NONE FOUND (expected $OUTPUTS/<project>/lineage.db)"; fi
+    bad=1
+  else
+    local file name
+    while IFS= read -r file; do
+      if [ -n "$DB" ]; then name="Database"; else name="Project $(basename "$(dirname "$file")")"; fi
+      if ! venv_ok; then show "$name" "found ($file)"
+      elif db_has_business_process_columns "$file"; then show "$name" "ok ($file)"
+      else show "$name" "needs --migrate ($file)"; bad=1; fi
+    done < <(db_files)
   fi
   echo "Ports"
   for line in "API:$API_PORT" "UI:$UI_PORT"; do
@@ -127,7 +144,11 @@ fi
 
 # --- start --------------------------------------------------------------------------------
 
-db_exists || fail "lineage database not found: $DB"
+if [ -n "$DB" ]; then
+  db_exists || fail "lineage database not found: $DB"
+else
+  db_exists || fail "no lineage database found: put one at $OUTPUTS/<project>/lineage.db, or pass a path"
+fi
 
 # Restart: stop a previous run of this project that still holds a port; refuse to touch anything else.
 stop_previous() {
@@ -149,14 +170,17 @@ stop_previous() {
 }
 for port in "$API_PORT" "$UI_PORT"; do stop_previous "$port"; done
 
-if ! db_has_business_process_columns; then
+while IFS= read -r file; do
+  db_has_business_process_columns "$file" && continue
   if [ "$MIGRATE" -eq 1 ]; then
-    echo "Adding business process columns to $DB"
-    (cd "$API_DIR" && "$PYTHON" -m lineage_api.migrations "$DB")
-  else
+    echo "Adding business process columns to $file"
+    (cd "$API_DIR" && "$PYTHON" -m lineage_api.migrations "$file") || echo "warning: could not migrate $file" >&2
+  elif [ -n "$DB" ]; then
     fail "the database has no business_process columns on business_lineage_step. Re-run with --migrate to add them."
+  else
+    echo "warning: $file needs --migrate; it will show as not ready in the project list" >&2
   fi
-fi
+done < <(db_files)
 
 PIDS=()
 cleanup() {
@@ -170,7 +194,12 @@ cleanup() {
 }
 trap cleanup INT TERM EXIT
 
-(cd "$API_DIR" && LINEAGE_DB="$DB" exec "$PYTHON" -m uvicorn lineage_api.app:app \
+if [ -n "$DB" ]; then
+  export LINEAGE_DB="$DB"; unset LINEAGE_OUTPUTS_DIR
+else
+  unset LINEAGE_DB; export LINEAGE_OUTPUTS_DIR="$OUTPUTS"
+fi
+(cd "$API_DIR" && exec "$PYTHON" -m uvicorn lineage_api.app:app \
   --host 127.0.0.1 --port "$API_PORT" --reload) &
 PIDS+=("$!")
 API_PID="$!"
@@ -186,7 +215,7 @@ for _ in $(seq 1 30); do
     echo "Data Lineage is running"
     echo "  UI:  http://127.0.0.1:$UI_PORT/"
     echo "  API: http://127.0.0.1:$API_PORT/docs"
-    echo "  DB:  $DB"
+    if [ -n "$DB" ]; then echo "  DB:  $DB"; else echo "  Projects from: $OUTPUTS/<project>/lineage.db ($(db_files | wc -l | tr -d ' ') found)"; fi
     echo "Press Ctrl+C to stop."
     break
   fi

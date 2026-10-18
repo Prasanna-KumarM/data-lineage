@@ -30,18 +30,18 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
 
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('1 upstream choice'))!)
     await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW]))
-    expect(summary(rail)).toBe('2 hops remaining.')
+    await waitFor(() => expect(summary(rail)).toBe('2 hops remaining.'))
 
     await advance(app, 2)
     await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, HOLLOW, HOLLOW]))
     await user.click(cardsIn(choices)[0])
     await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, CURRENT, HOLLOW]))
-    expect(summary(rail)).toBe('1 hop remaining.')
+    await waitFor(() => expect(summary(rail)).toBe('1 hop remaining.'))
 
     await advance(app, 3)
     await user.click(cardsIn(choices)[0])
     await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, FILLED, CURRENT]))
-    expect(summary(rail)).toBe('Next: the ultimate sources.')
+    await waitFor(() => expect(summary(rail)).toBe('Next: the ultimate sources.'))
 
     await advance(app, 4)
     await waitFor(() => expect(cardsIn(choices)).toHaveLength(3))
@@ -196,7 +196,7 @@ describe('hop progress rail on the p1/p2/p3 example', () => {
     const { user, choices, rail } = await open(client)
     await user.click(cardsIn(choices)[0]) // p1: routes of 1 and 2 hops below it
     await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, MORE]))
-    expect(summary(rail)).toBe('Up to 1 hop remaining.')
+    await waitFor(() => expect(summary(rail)).toBe('Up to 1 hop remaining.'))
   })
 
   it('shows an exact count when all routes below the selection have the same length', async () => {
@@ -204,7 +204,7 @@ describe('hop progress rail on the p1/p2/p3 example', () => {
     const { user, choices, rail } = await open(client)
     await user.click(cardsIn(choices)[1]) // p2 -> p2.1 -> three leaves
     await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW]))
-    expect(summary(rail)).toBe('1 hop remaining.')
+    await waitFor(() => expect(summary(rail)).toBe('1 hop remaining.'))
   })
 
   it('measures depth only for the branch the user is on', async () => {

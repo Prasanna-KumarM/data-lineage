@@ -21,6 +21,7 @@ from lineage_api.db import (
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
 from lineage_api.lineage_graph import build_column_graph
+from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.summary import TableSummaryCache
 from lineage_api.upstream import StepNotFound, get_root_choices, get_upstream_choices
@@ -35,11 +36,37 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
     return JSONResponse(status_code=status, content={"error": {"code": code, "message": message}})
 
 
+def _registry(request: Request) -> Optional[ProjectRegistry]:
+    """Set when databases are found in <outputs>/<project>/lineage.db instead of one fixed file."""
+    if request.app.state.db_path or os.environ.get(ENV_DB_PATH):
+        return None
+    directory = request.app.state.outputs_dir or os.environ.get(ENV_OUTPUTS_DIR)
+    if not directory:
+        return None
+    return request.app.state.registries.setdefault(str(directory), ProjectRegistry(directory))
+
+
+def _db_path(request: Request) -> str:
+    registry = _registry(request)
+    if registry is None:
+        path = request.app.state.db_path or os.environ.get(ENV_DB_PATH)
+        if not path:
+            raise DatabaseNotConfigured()
+        return path
+    # Requests that carry no project of their own (steps, relations) send it as a header.
+    project = request.query_params.get("project") or request.headers.get("X-Lineage-Project")
+    if not project:
+        raise ApiError(400, "INVALID_REQUEST", "Provide the project (project parameter or X-Lineage-Project header).")
+    entry = registry.find(project)
+    if entry is None:
+        raise ApiError(404, "PROJECT_NOT_FOUND", f"Unknown project: {project}")
+    if not entry["ready"]:
+        raise ApiError(503, "PROJECT_NOT_READY", f"{project}: {entry['problem']}")
+    return str(entry["path"])
+
+
 def get_conn(request: Request) -> Iterator[sqlite3.Connection]:
-    path = request.app.state.db_path or os.environ.get(ENV_DB_PATH)
-    if not path:
-        raise DatabaseNotConfigured()
-    conn = open_readonly(path)
+    conn = open_readonly(_db_path(request))
     try:
         check_schema(conn)
         yield conn
@@ -64,9 +91,11 @@ def _require_column(conn: sqlite3.Connection, project: str, object_id: str, colu
         raise ApiError(404, "TARGET_COLUMN_NOT_FOUND", f"Unknown target column: {column_id}")
 
 
-def create_app(db_path: Optional[str] = None) -> FastAPI:
+def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="Data Lineage API", version="1.0.0")
     app.state.db_path = db_path
+    app.state.outputs_dir = outputs_dir
+    app.state.registries = {}
     app.state.source_cache = TargetSourceCache()
     app.state.summary_cache = TableSummaryCache()
 
@@ -110,9 +139,21 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
         codes = {404: "NOT_FOUND", 405: "METHOD_NOT_ALLOWED"}
         return _error(exc.status_code, codes.get(exc.status_code, "HTTP_ERROR"), str(exc.detail))
 
-    @app.get("/projects", response_model=list[schemas.ProjectOut])
-    def projects(conn: sqlite3.Connection = Depends(get_conn)):
-        return [{"project_name": p} for p in list_projects(conn)]
+    @app.get("/projects", response_model=list[schemas.ProjectOut], response_model_exclude_none=True)
+    def projects(request: Request):
+        registry = _registry(request)
+        if registry is not None:
+            return [
+                {"project_name": e["project_name"], "folder": e["folder"],
+                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]})}
+                for e in registry.entries()
+            ]
+        conn = open_readonly(_db_path(request))
+        try:
+            check_schema(conn)
+            return [{"project_name": p} for p in list_projects(conn)]
+        finally:
+            conn.close()
 
     @app.get("/targets", response_model=list[schemas.TargetObjectOut])
     def targets(project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):

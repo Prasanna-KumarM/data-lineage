@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { ApiError, type ApiClient } from '../api/client'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { ApiError, bindProject, type ApiClient } from '../api/client'
 import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types'
 import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
@@ -48,13 +48,15 @@ function Loading({ text }: { text: string }) {
 }
 
 function Session({
-  client,
+  client: unboundClient,
   target,
   object,
   column,
   allObjects,
   sessionKey,
 }: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string }) {
+  // Step and relation requests carry no project, so every request of this session names it.
+  const client = useMemo(() => bindProject(unboundClient, target.project), [unboundClient, target.project])
   const [nav, dispatch] = useReducer(navigationReducer, initialNavigation)
   const depth = nav.path.length
   const parent = nav.path[depth - 1]

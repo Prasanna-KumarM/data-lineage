@@ -111,7 +111,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     const branching = cardsIn(choices)[2]
     await user.click(branching)
     await user.click(next())
-    await waitFor(() => expect(hopContext(choices)).toContain('Step 2 · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
     await waitFor(() => expect(cardsIn(choices).length).toBe(1))
     expect(cardTitles(choices)).not.toContain('AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE')
     await waitFor(() => expect(sourceNames(sources).length).toBeGreaterThan(0))

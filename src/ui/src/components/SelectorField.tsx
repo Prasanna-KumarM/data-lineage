@@ -4,6 +4,8 @@ import { ApiError } from '../api/client'
 export interface SelectOption {
   value: string
   label: string
+  disabled?: boolean
+  title?: string
 }
 
 interface Props<T> {
@@ -35,7 +37,7 @@ export function SelectorField<T>({ id, label, placeholder, emptyMessage, state, 
       >
         <option value="">{placeholder}</option>
         {(options ?? []).map((option) => (
-          <option key={option.value} value={option.value}>
+          <option key={option.value} value={option.value} disabled={option.disabled} title={option.title}>
             {option.label}
           </option>
         ))}
