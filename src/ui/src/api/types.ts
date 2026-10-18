@@ -173,3 +173,39 @@ export interface TableSummary {
   totals: { columns: number; with_lineage: number }
   columns: SummaryColumn[]
 }
+
+export interface GraphNode {
+  node_id: string
+  role: 'target' | 'intermediate' | 'source'
+  object_name: string
+  column_name: string
+  object_type: string | null
+  kind: SourceKind | null
+  condition: string | null
+  result_expression: string | null
+  hops_min: number
+  hops_max: number
+}
+
+export interface GraphEdge {
+  edge_id: string
+  from_node: string
+  to_node: string
+  relation_id: string
+  step_ids: string[]
+  relation_type: string
+  component_name: string | null
+  condition: string | null
+  result_expression: string | null
+  hop: number
+}
+
+export interface ColumnGraph {
+  project: string
+  object_id: string
+  column_id: string
+  has_lineage: boolean
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  totals: { nodes: number; edges: number; sources: number; hops_max: number }
+}
