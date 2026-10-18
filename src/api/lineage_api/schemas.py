@@ -205,3 +205,46 @@ class TableSummaryOut(BaseModel):
     object: TargetObjectOut
     totals: SummaryTotalsOut
     columns: list[SummaryColumnOut]
+
+
+class GraphNodeOut(BaseModel):
+    node_id: str
+    role: Literal["target", "intermediate", "source"]
+    object_name: str
+    column_name: str
+    object_type: Optional[str] = None
+    kind: Optional[Literal["column", "constant", "function", "not_persisted"]] = None
+    condition: Optional[str] = None
+    result_expression: Optional[str] = None
+    hops_min: int
+    hops_max: int
+
+
+class GraphEdgeOut(BaseModel):
+    edge_id: str
+    from_node: str
+    to_node: str
+    relation_id: str
+    step_ids: list[str]
+    relation_type: str
+    component_name: Optional[str] = None
+    condition: Optional[str] = None
+    result_expression: Optional[str] = None
+    hop: int
+
+
+class GraphTotalsOut(BaseModel):
+    nodes: int
+    edges: int
+    sources: int
+    hops_max: int
+
+
+class ColumnGraphOut(BaseModel):
+    project: str
+    object_id: str
+    column_id: str
+    has_lineage: bool
+    nodes: list[GraphNodeOut]
+    edges: list[GraphEdgeOut]
+    totals: GraphTotalsOut
