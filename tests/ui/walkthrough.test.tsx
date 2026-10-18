@@ -38,7 +38,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     await user.click(app.next())
 
     // Hop 4: three sibling terminal columns.
-    await waitFor(() => expect(hopContext(choices)).toContain('Step 4 · upstream of CM_CLO_OFFER.e_bok_code'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of CM_CLO_OFFER.e_bok_code'))
     await waitFor(() => expect(cardTitles(choices)).toHaveLength(3))
     expect(cardTitles(choices)).toEqual([
       'CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',

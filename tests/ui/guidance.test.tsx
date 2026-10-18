@@ -37,7 +37,7 @@ describeReal('walkthrough guidance on the real SP_CLO lineage', () => {
     await user.click(chain)
     expect(instruction(choices)).toBe('Press Next to see where CM_CLO_OFFER.e_fdk_mt comes from.')
     expect(text(app.next())).toContain('Go into CM_CLO_OFFER.e_fdk_mt')
-    await waitFor(() => expect(text(choices.querySelector('.hop-badge'))).toBe('Step 1 of 4'))
+    await waitFor(() => expect(text(choices.querySelector('.hop-badge'))).toBe('Step 1 of 3'))
 
     await user.click(app.next())
     await waitFor(() => expect(text(app.back())).toContain('to CM_PAR_LOAN_TRADES.FDK_MT'))
@@ -57,6 +57,7 @@ describeReal('walkthrough guidance on the real SP_CLO lineage', () => {
     await user.click(app.next())
     await waitFor(() => expect(cardsIn(choices)).toHaveLength(3))
     expect(instruction(choices)).toBe('You have reached an ultimate source. Press Back to try another branch.')
+    expect(text(choices.querySelector('.hop-badge'))).toBe('Ultimate sources')
     expect(text(app.next())).toContain('Pick a mapping first')
     await user.click(cardsIn(choices)[0])
     expect(instruction(choices)).toBe('You have reached an ultimate source. Press Back to try another branch.')
