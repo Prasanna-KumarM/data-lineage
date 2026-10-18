@@ -125,3 +125,51 @@ export interface StepDetail {
   persistence: { status: string; reason_code: string | null; reason: string | null } | null
   step_ids: string[]
 }
+
+export type SourceKind = 'column' | 'constant' | 'function' | 'not_persisted'
+
+export interface RouteStep {
+  endpoint: string
+  relation_type: string
+  component_name: string | null
+}
+
+export interface SummarySource {
+  terminal_id: string
+  object_name: string
+  column_name: string
+  object_type: string | null
+  kind: SourceKind
+  condition: string | null
+  result_expression: string | null
+  leaf_relation_types: string[]
+  hops_min: number
+  hops_max: number
+  route_count: number
+  route: RouteStep[]
+}
+
+export interface SummaryFlags {
+  constant: boolean
+  function: boolean
+  not_persisted: boolean
+  case_branches: boolean
+  inferred: boolean
+}
+
+export interface SummaryColumn {
+  column_id: string
+  column_name: string
+  has_lineage: boolean
+  source_count: number
+  hops_min: number | null
+  hops_max: number | null
+  flags: SummaryFlags
+  sources: SummarySource[]
+}
+
+export interface TableSummary {
+  object: TargetObject
+  totals: { columns: number; with_lineage: number }
+  columns: SummaryColumn[]
+}

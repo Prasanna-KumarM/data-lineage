@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../../src/ui/src/App'
 import { relationStyle } from '../../src/ui/src/components/relationStyle'
@@ -8,6 +8,8 @@ const select = (name: string) => screen.getByLabelText(name) as HTMLSelectElemen
 const optionTexts = (el: HTMLSelectElement) => Array.from(el.options).map((o) => o.textContent)
 
 async function open(objectName: string, columnName: string) {
+  cleanup()
+  window.history.replaceState(null, '', '#/lineage')
   const user = userEvent.setup()
   render(<App client={realClient()} />)
   await waitFor(() => expect(optionTexts(select('Target Object')).length).toBeGreaterThan(1))

@@ -1,10 +1,8 @@
-import { useMemo, useReducer } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createApiClient, newSessionId, type ApiClient } from './api/client'
-import type { TargetRef } from './api/types'
-import { LineageWorkspace } from './components/LineageWorkspace'
-import { TargetSelectors } from './components/TargetSelectors'
-import { useTargetCatalog } from './hooks/useTargetCatalog'
-import { emptySelection, selectionReducer } from './state/selection'
+import { LineagePage } from './pages/LineagePage'
+import { SummaryPage } from './pages/SummaryPage'
+import { useRoute } from './routing'
 
 interface Props {
   client?: ApiClient
@@ -12,34 +10,34 @@ interface Props {
 
 export default function App({ client: injected }: Props) {
   const client = useMemo(() => injected ?? createApiClient({ sessionId: newSessionId() }), [injected])
-  const [selection, dispatch] = useReducer(selectionReducer, emptySelection)
-  const catalog = useTargetCatalog(client, selection)
+  const route = useRoute()
 
-  const object =
-    catalog.targets.status === 'success' ? catalog.targets.data.find((o) => o.object_id === selection.objectId) : undefined
-  const column =
-    catalog.columns.status === 'success' ? catalog.columns.data.find((c) => c.column_id === selection.columnId) : undefined
-
-  const target: TargetRef | null =
-    selection.project && object && column
-      ? { project: selection.project, objectId: object.object_id, columnId: column.column_id }
-      : null
+  // Counts real navigations only; the walkthrough rewriting its own address must not restart it.
+  const [navigations, setNavigations] = useState(0)
+  useEffect(() => {
+    const onChange = () => setNavigations((n) => n + 1)
+    window.addEventListener('hashchange', onChange)
+    return () => window.removeEventListener('hashchange', onChange)
+  }, [])
 
   return (
     <div className="app">
-      <header>
+      <header className="topbar">
         <h1>Data Lineage</h1>
-        <TargetSelectors catalog={catalog} selection={selection} dispatch={dispatch} />
+        <nav aria-label="Pages">
+          <a href="#/summary" aria-current={route.name === 'summary' ? 'page' : undefined}>
+            Summary
+          </a>
+          <a href="#/lineage" aria-current={route.name === 'lineage' ? 'page' : undefined}>
+            Walkthrough
+          </a>
+        </nav>
       </header>
-      <main>
-        <LineageWorkspace
-          client={client}
-          target={target}
-          object={object}
-          column={column}
-          allObjects={catalog.targets.status === 'success' ? catalog.targets.data : []}
-        />
-      </main>
+      {route.name === 'lineage' ? (
+        <LineagePage key={navigations} client={client} route={route} />
+      ) : (
+        <SummaryPage client={client} route={route} />
+      )}
     </div>
   )
 }
