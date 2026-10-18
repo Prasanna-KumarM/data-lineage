@@ -100,7 +100,7 @@ describeReal('walkthrough requests that carry no project of their own', () => {
     const app = await openApp(realClient({ fetchImpl: spy }), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
     await app.user.click(cardsIn(app.choices).find((c) => c.textContent?.includes('1 upstream choice'))!)
     await app.user.click(app.next())
-    await app.user.click(within(app.choices).getAllByRole('button', { name: /^Details for/ })[0])
+    await app.user.click((await within(app.choices).findAllByRole('button', { name: /^Details for/ }))[0])
     await waitFor(() => expect(seen.some((s) => s.url.includes('/steps/'))).toBe(true))
     await waitFor(() => expect(seen.some((s) => s.url.includes('/lineage/upstream?step_id'))).toBe(true))
 

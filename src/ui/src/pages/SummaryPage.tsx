@@ -48,7 +48,7 @@ export function SummaryPage({ client, route }: Props) {
       {projects.status === 'error' && <ErrorNotice error={projects.error} onRetry={projects.reload} />}
 
       {projects.status === 'success' && names.length === 0 && <p className="status">No projects available.</p>}
-      {projects.status === 'success' && names.length > 1 && (
+      {projects.status === 'success' && names.length > 0 && (
         <div className="field project-field">
           <label htmlFor="summary-project">Project</label>
           <select

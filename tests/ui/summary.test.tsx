@@ -37,7 +37,7 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
     expect(items).toHaveLength(7)
     expect(textOf(items[0])).toContain('AR_PAR_LOAN_EVENTS')
     expect(textOf(items[0])).toContain('46 columns')
-    expect(screen.queryByLabelText('Project')).toBeNull()
+    expect((screen.getByLabelText('Project') as HTMLSelectElement).value).toBe('SP_CLO')
   })
 
   it('tells same-named tables apart', async () => {
