@@ -42,9 +42,9 @@ export async function openApp(client: ApiClient, objectName: string, columnName:
   }
 }
 
-/** "Step 2 · upstream of X" assembled from the step badge and the endpoint being explored. */
+/** "Step 2 · upstream of X" (or "Ultimate sources · upstream of X") assembled from the step badge and the endpoint being explored. */
 export const hopContext = (scope: HTMLElement) => {
-  const hop = /^Step \d+/.exec(within(scope).queryByText(/^Step \d+/)?.textContent ?? '')?.[0]
+  const hop = /^(Step \d+|Ultimate sources)/.exec(within(scope).queryByText(/^(Step \d+|Ultimate sources)/)?.textContent ?? '')?.[0]
   const endpoint = within(scope).queryByText(/^Upstream of/)?.querySelector('strong')?.textContent
   return hop && endpoint ? `${hop} · upstream of ${endpoint}` : null
 }
@@ -120,6 +120,6 @@ type App = Awaited<ReturnType<typeof openApp>>
 /** Clicks Next and waits for the next level, because its choices are fetched. */
 export async function advance(app: App, hop: number) {
   await app.user.click(app.next())
-  await waitFor(() => expect(hopContext(app.choices)).toContain(`Step ${hop} `))
+  await waitFor(() => expect(hopContext(app.choices)).toMatch(new RegExp(`^(Step ${hop} |Ultimate sources)`)))
   await waitFor(() => expect(cardsIn(app.choices).length).toBeGreaterThan(0))
 }

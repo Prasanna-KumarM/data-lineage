@@ -29,33 +29,34 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     const { user, choices, rail } = app
 
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('1 upstream choice'))!)
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW, HOLLOW]))
-    expect(summary(rail)).toBe('3 hops remaining.')
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW]))
+    await waitFor(() => expect(summary(rail)).toBe('2 hops remaining.'))
 
     await advance(app, 2)
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, HOLLOW, HOLLOW, HOLLOW]))
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, HOLLOW, HOLLOW]))
     await user.click(cardsIn(choices)[0])
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, CURRENT, HOLLOW, HOLLOW]))
-    expect(summary(rail)).toBe('2 hops remaining.')
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, CURRENT, HOLLOW]))
+    await waitFor(() => expect(summary(rail)).toBe('1 hop remaining.'))
 
     await advance(app, 3)
     await user.click(cardsIn(choices)[0])
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, FILLED, CURRENT, HOLLOW]))
-    expect(summary(rail)).toBe('1 hop remaining.')
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, FILLED, CURRENT]))
+    await waitFor(() => expect(summary(rail)).toBe('Next: the ultimate sources.'))
 
     await advance(app, 4)
     await waitFor(() => expect(cardsIn(choices)).toHaveLength(3))
     await user.click(cardsIn(choices)[0])
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([FILLED, FILLED, FILLED, CURRENT]))
-    // The same glyphs appear while the depth is still loading, so wait for the text.
+    // The ultimate source is not a hop of the path: the dots stay at the three hops taken.
     await waitFor(() => expect(summary(rail)).toBe('End of this branch.'))
+    expect(railGlyphs(rail)).toEqual([FILLED, FILLED, FILLED])
   })
 
-  it('selecting a terminal choice shows only the selected hop', async () => {
-    const { user, choices, rail } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
+  it('selecting a terminal choice adds no hop to the path', async () => {
+    const { user, choices, rail, crumbs: nav } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('nothing further upstream'))!)
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT]))
     await waitFor(() => expect(summary(rail)).toBe('End of this branch.'))
+    expect(railGlyphs(rail)).toEqual([])
+    expect(crumbs(nav)).toEqual(['PAR_UNPROCESSED_EVENTS.CONTRACT_ID'])
   })
 
   it('never draws dots for sibling mappings that were not selected', async () => {
@@ -83,9 +84,9 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     )
     const cards = cardsIn(choices)
     await user.click(cards[0])
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT]))
+    await waitFor(() => expect(calls.filter((c) => c.includes('remaining-depth'))).toHaveLength(1))
     await user.click(cards[2])
-    await waitFor(() => expect(railGlyphs(rail).length).toBeGreaterThan(1))
+    await waitFor(() => expect(railGlyphs(rail).length).toBeGreaterThan(0))
     const depthCalls = calls.filter((c) => c.includes('remaining-depth'))
     expect(depthCalls).toHaveLength(2)
     expect(new Set(depthCalls).size).toBe(2)
@@ -106,7 +107,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     const restored = cardsIn(choices)
     expect(restored).toHaveLength(2)
     expect(pressed(restored.find((c) => c.textContent?.includes('1 upstream choice'))!)).toBe(true)
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW, HOLLOW]))
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW]))
     expect(crumbs(nav)).toEqual(['CM_PAR_LOAN_TRADES.FDK_MT', 'CM_CLO_OFFER.e_fdk_mt'])
   })
 
@@ -194,16 +195,16 @@ describe('hop progress rail on the p1/p2/p3 example', () => {
     const { client } = treeClient()
     const { user, choices, rail } = await open(client)
     await user.click(cardsIn(choices)[0]) // p1: routes of 1 and 2 hops below it
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, MORE]))
-    expect(summary(rail)).toBe('1–2 hops remaining.')
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, MORE]))
+    await waitFor(() => expect(summary(rail)).toBe('Up to 1 hop remaining.'))
   })
 
   it('shows an exact count when all routes below the selection have the same length', async () => {
     const { client } = treeClient()
     const { user, choices, rail } = await open(client)
     await user.click(cardsIn(choices)[1]) // p2 -> p2.1 -> three leaves
-    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW]))
-    expect(summary(rail)).toBe('2 hops remaining.')
+    await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW]))
+    await waitFor(() => expect(summary(rail)).toBe('1 hop remaining.'))
   })
 
   it('measures depth only for the branch the user is on', async () => {

@@ -38,7 +38,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     await user.click(app.next())
 
     // Hop 4: three sibling terminal columns.
-    await waitFor(() => expect(hopContext(choices)).toContain('Step 4 · upstream of CM_CLO_OFFER.e_bok_code'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of CM_CLO_OFFER.e_bok_code'))
     await waitFor(() => expect(cardTitles(choices)).toHaveLength(3))
     expect(cardTitles(choices)).toEqual([
       'CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',
@@ -111,7 +111,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     const branching = cardsIn(choices)[2]
     await user.click(branching)
     await user.click(next())
-    await waitFor(() => expect(hopContext(choices)).toContain('Step 2 · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
     await waitFor(() => expect(cardsIn(choices).length).toBe(1))
     expect(cardTitles(choices)).not.toContain('AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE')
     await waitFor(() => expect(sourceNames(sources).length).toBeGreaterThan(0))

@@ -24,14 +24,16 @@ export function SummaryPage({ client, route }: Props) {
   const [graphColumn, setGraphColumn] = useState<{ id: string; name: string } | null>(null)
   const closeGraph = useCallback(() => setGraphColumn(null), [])
 
-  const names = projects.status === 'success' ? projects.data.map((p) => p.project_name) : []
-  const project = route.project ?? chosenProject ?? (names.length === 1 ? names[0] : null)
+  const entries = projects.status === 'success' ? projects.data : []
+  const names = entries.map((p) => p.project_name)
+  const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
+  const project = route.project ?? chosenProject ?? onlyUsable
 
   useEffect(() => setGraphColumn(null), [project, route.objectId])
 
   useEffect(() => {
-    if (route.project === null && chosenProject === null && names.length === 1) setChosenProject(names[0])
-  }, [route.project, chosenProject, names])
+    if (route.project === null && chosenProject === null && onlyUsable) setChosenProject(onlyUsable)
+  }, [route.project, chosenProject, onlyUsable])
 
   const summary = useAsync(
     project && route.objectId ? (signal) => client.tableSummary(project, route.objectId!, signal) : null,
@@ -46,7 +48,7 @@ export function SummaryPage({ client, route }: Props) {
       {projects.status === 'error' && <ErrorNotice error={projects.error} onRetry={projects.reload} />}
 
       {projects.status === 'success' && names.length === 0 && <p className="status">No projects available.</p>}
-      {projects.status === 'success' && names.length > 1 && (
+      {projects.status === 'success' && names.length > 0 && (
         <div className="field project-field">
           <label htmlFor="summary-project">Project</label>
           <select
@@ -58,13 +60,23 @@ export function SummaryPage({ client, route }: Props) {
             }}
           >
             <option value="">Select a project</option>
-            {names.map((name) => (
-              <option key={name} value={name}>
-                {name}
+            {entries.map((p) => (
+              <option key={p.project_name} value={p.project_name} disabled={p.ready === false} title={p.problem}>
+                {p.ready === false ? `${p.project_name} (not ready)` : p.project_name}
               </option>
             ))}
           </select>
         </div>
+      )}
+      {entries
+        .filter((p) => p.ready === false)
+        .map((p) => (
+          <p key={p.project_name} className="status note">
+            {p.project_name}: {p.problem}
+          </p>
+        ))}
+      {projects.status === 'success' && names.length > 1 && !project && (
+        <p className="status">Choose a project to see its target tables.</p>
       )}
 
       {project && !route.objectId && <TableSearch client={client} project={project} onChoose={open} />}

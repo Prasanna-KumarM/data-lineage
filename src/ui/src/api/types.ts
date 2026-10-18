@@ -1,5 +1,9 @@
 export interface Project {
   project_name: string
+  folder?: string
+  /** Only present (false) when the project's database exists but cannot be used yet. */
+  ready?: boolean
+  problem?: string
 }
 
 export interface BusinessProcess {

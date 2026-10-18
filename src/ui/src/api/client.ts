@@ -35,22 +35,29 @@ export interface ApiClient {
   remainingDepth(stepId: string, signal?: AbortSignal): Promise<RemainingDepth>
   stepDetail(stepId: string, signal?: AbortSignal): Promise<StepDetail>
   ultimateSources(target: TargetRef, signal?: AbortSignal, stepId?: string): Promise<UltimateSourcesResponse>
+  /** The same client, with every request sent for one project (needed by calls that carry no project of their own). */
+  forProject?(project: string): ApiClient
 }
 
 export interface ApiClientOptions {
   sessionId: string
   baseUrl?: string
   fetchImpl?: typeof fetch
+  project?: string
 }
 
-export function createApiClient({ sessionId, baseUrl = '', fetchImpl }: ApiClientOptions): ApiClient {
+export const bindProject = (client: ApiClient, project: string): ApiClient => client.forProject?.(project) ?? client
+
+export function createApiClient({ sessionId, baseUrl = '', fetchImpl, project }: ApiClientOptions): ApiClient {
   async function get<T>(path: string, params: Record<string, string>, signal?: AbortSignal): Promise<T> {
     const query = new URLSearchParams(params).toString()
     const url = `${baseUrl}${path}${query ? `?${query}` : ''}`
     let response: Response
     try {
       const doFetch = fetchImpl ?? fetch
-      response = await doFetch(url, { headers: { 'X-Session-Id': sessionId }, signal })
+      const headers: Record<string, string> = { 'X-Session-Id': sessionId }
+      if (project) headers['X-Lineage-Project'] = project
+      response = await doFetch(url, { headers, signal })
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') throw error
       throw new ApiError(0, 'NETWORK_ERROR', 'The lineage service cannot be reached.')
@@ -82,6 +89,7 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl }: ApiClien
     searchTargets: (project, q, signal) => get('/targets/search', { project, q }, signal),
     tableSummary: (project, objectId, signal) =>
       get(`/targets/${encodeURIComponent(objectId)}/summary`, { project }, signal),
+    forProject: (name) => createApiClient({ sessionId, baseUrl, fetchImpl, project: name }),
     columnGraph: (target, signal) => get('/lineage/graph', targetParams(target), signal),
     rootChoices: (target, signal) => get('/lineage/upstream', targetParams(target), signal),
     upstream: (stepId, signal) => get('/lineage/upstream', { step_id: stepId }, signal),

@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from 'react'
-import { ApiError, type ApiClient } from '../api/client'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
+import { ApiError, bindProject, type ApiClient } from '../api/client'
 import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types'
 import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
@@ -48,13 +48,15 @@ function Loading({ text }: { text: string }) {
 }
 
 function Session({
-  client,
+  client: unboundClient,
   target,
   object,
   column,
   allObjects,
   sessionKey,
 }: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string }) {
+  // Step and relation requests carry no project, so every request of this session names it.
+  const client = useMemo(() => bindProject(unboundClient, target.project), [unboundClient, target.project])
   const [nav, dispatch] = useReducer(navigationReducer, initialNavigation)
   const depth = nav.path.length
   const parent = nav.path[depth - 1]
@@ -117,12 +119,16 @@ function Session({
   const goBack = useCallback(() => dispatch({ type: 'back' }), [])
   const goNext = () => selected && canNext && dispatch({ type: 'next', choice: selected })
 
+  // The ultimate source itself is not a step of the path: it has its own panel.
+  const pathSelected = selected?.has_more_upstream ? selected : undefined
   const remaining = remainingDepth.status === 'success' ? remainingDepth.data : null
   const stepText = (() => {
+    if (allTerminal) return 'Ultimate sources'
     const base = `Step ${depth + 1}`
-    if (!selected || !remaining || remaining.is_terminal) return base
-    const min = depth + 1 + (remaining.remaining_hops_exact ?? remaining.remaining_hops_min ?? 0)
-    const max = depth + 1 + (remaining.remaining_hops_exact ?? remaining.remaining_hops_max ?? 0)
+    if (!pathSelected || !remaining || remaining.is_terminal) return base
+    const less = (n: number | null) => Math.max(0, (n ?? 1) - 1)
+    const min = depth + 1 + less(remaining.remaining_hops_exact ?? remaining.remaining_hops_min)
+    const max = depth + 1 + less(remaining.remaining_hops_exact ?? remaining.remaining_hops_max)
     return min === max ? `${base} of ${min}` : `${base} of ${min}–${max}`
   })()
 
@@ -171,7 +177,7 @@ function Session({
               </span>
               <span className="walk-btn-sub">{backLabel ? `to ${backLabel}` : 'Start of path'}</span>
             </button>
-            <HopRail path={nav.path} selected={selected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
+            <HopRail path={nav.path} selected={pathSelected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
             <button
               type="button"
               className="walk-btn primary"
@@ -191,7 +197,7 @@ function Session({
 
         <div className="block">
           <h3 className="block-title">Your path</h3>
-          <Breadcrumb targetLabel={targetLabel} path={nav.path} selected={selected} />
+          <Breadcrumb targetLabel={targetLabel} path={nav.path} selected={pathSelected} />
         </div>
 
         <div className="block">
