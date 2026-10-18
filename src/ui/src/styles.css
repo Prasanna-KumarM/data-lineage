@@ -1120,7 +1120,7 @@ button.dot:focus-visible {
 
 .walk-controls {
   display: grid;
-  grid-template-columns: minmax(130px, auto) 1fr minmax(130px, auto);
+  grid-template-columns: minmax(110px, 200px) minmax(120px, 1fr) minmax(110px, 200px);
   align-items: center;
   gap: 14px;
 }
@@ -1131,10 +1131,27 @@ button.dot:focus-visible {
 }
 
 .walk-controls .rail-dots {
-  justify-content: center;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+
+.walk-controls .rail-dots li {
+  flex: none;
+}
+
+/* Centred when it fits, scrolls from the left edge when it does not. */
+.walk-controls .rail-dots li:first-child {
+  margin-left: auto;
+}
+
+.walk-controls .rail-dots li:last-child {
+  margin-right: auto;
 }
 
 .walk-controls .rail-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   margin: 2px 0 0;
   font-size: 0.8rem;
   font-weight: 400;
@@ -1146,7 +1163,8 @@ button.dot:focus-visible {
   flex-direction: column;
   align-items: flex-start;
   gap: 2px;
-  max-width: 220px;
+  min-width: 0;
+  max-width: 100%;
   padding: 8px 14px;
   font: inherit;
   text-align: left;
