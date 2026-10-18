@@ -20,6 +20,7 @@ from lineage_api.db import (
 )
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
+from lineage_api.lineage_graph import build_column_graph
 from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.summary import TableSummaryCache
 from lineage_api.upstream import StepNotFound, get_root_choices, get_upstream_choices
@@ -169,6 +170,16 @@ def create_app(db_path: Optional[str] = None) -> FastAPI:
             "step_id": step_id,
             "terminal_sources": sources_for_step(resolved, step_id),
         }
+
+    @app.get("/lineage/graph", response_model=schemas.ColumnGraphOut)
+    def column_graph(
+        project: str = Query(...),
+        object_id: str = Query(...),
+        column_id: str = Query(...),
+        conn: sqlite3.Connection = Depends(get_conn),
+    ):
+        _require_column(conn, project, object_id, column_id)
+        return build_column_graph(conn, project, object_id, column_id)
 
     @app.get("/lineage/remaining-depth", response_model=schemas.RemainingDepthOut)
     def remaining_depth(step_id: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
