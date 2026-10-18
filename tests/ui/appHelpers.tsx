@@ -37,14 +37,14 @@ export async function openApp(client: ApiClient, objectName: string, columnName:
     sources: within(workspace).getByRole('region', { name: 'Ultimate sources' }),
     rail: within(choices).getByRole('group', { name: 'Hop progress' }),
     crumbs: within(choices).getByRole('navigation', { name: 'Lineage path' }),
-    next: () => within(choices).getByRole('button', { name: 'Next' }) as HTMLButtonElement,
-    back: () => within(choices).getByRole('button', { name: 'Back' }) as HTMLButtonElement,
+    next: () => within(choices).getByRole('button', { name: /^Next/ }) as HTMLButtonElement,
+    back: () => within(choices).getByRole('button', { name: /^Back/ }) as HTMLButtonElement,
   }
 }
 
-/** "Hop 2 · upstream of X" assembled from the hop badge and the endpoint being explored. */
+/** "Step 2 · upstream of X" assembled from the step badge and the endpoint being explored. */
 export const hopContext = (scope: HTMLElement) => {
-  const hop = within(scope).queryByText(/^Hop \d+$/)?.textContent
+  const hop = /^Step \d+/.exec(within(scope).queryByText(/^Step \d+/)?.textContent ?? '')?.[0]
   const endpoint = within(scope).queryByText(/^Upstream of/)?.querySelector('strong')?.textContent
   return hop && endpoint ? `${hop} · upstream of ${endpoint}` : null
 }
@@ -120,6 +120,6 @@ type App = Awaited<ReturnType<typeof openApp>>
 /** Clicks Next and waits for the next level, because its choices are fetched. */
 export async function advance(app: App, hop: number) {
   await app.user.click(app.next())
-  await waitFor(() => expect(hopContext(app.choices)).toContain(`Hop ${hop} `))
+  await waitFor(() => expect(hopContext(app.choices)).toContain(`Step ${hop} `))
   await waitFor(() => expect(cardsIn(app.choices).length).toBeGreaterThan(0))
 }

@@ -278,26 +278,6 @@ main {
   margin-bottom: 10px;
 }
 
-.nav-actions button {
-  padding: 6px 14px;
-  font: inherit;
-  border: 1px solid #cbd2d9;
-  border-radius: 6px;
-  background: #fff;
-  cursor: pointer;
-}
-
-.nav-actions button.primary {
-  background: #1d4ed8;
-  border-color: #1d4ed8;
-  color: #fff;
-}
-
-.nav-actions button:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .rail {
   margin-bottom: 8px;
 }
@@ -476,24 +456,6 @@ button.dot:focus-visible {
 
 .card-title {
   font-size: 1rem;
-}
-
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.nav-actions {
-  display: flex;
-  gap: 10px;
-  margin: 0;
-}
-
-.action-hint {
-  margin: 0;
-  font-size: 0.85rem;
-  color: #52606d;
 }
 
 /* Mapping cards */
@@ -1134,4 +1096,89 @@ button.dot:focus-visible {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Back / Next strip pinned to the top of the middle panel */
+.walk-bar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: -22px -24px 0;
+  padding: 16px 24px 14px;
+  background: #fff;
+  border-bottom: 1px solid #d9e2ec;
+  border-radius: 8px 8px 0 0;
+  box-shadow: 0 4px 8px -6px rgba(15, 23, 42, 0.25);
+}
+
+.walk-instruction {
+  margin: 8px 0 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2933;
+}
+
+.walk-controls {
+  display: grid;
+  grid-template-columns: minmax(130px, auto) 1fr minmax(130px, auto);
+  align-items: center;
+  gap: 14px;
+}
+
+.walk-controls .rail {
+  margin: 0;
+  text-align: center;
+}
+
+.walk-controls .rail-dots {
+  justify-content: center;
+}
+
+.walk-controls .rail-summary {
+  margin: 2px 0 0;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #52606d;
+}
+
+.walk-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  max-width: 220px;
+  padding: 8px 14px;
+  font: inherit;
+  text-align: left;
+  color: #1f2933;
+  background: #fff;
+  border: 1px solid #cbd2d9;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.walk-btn.primary {
+  align-items: flex-end;
+  text-align: right;
+  color: #fff;
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+}
+
+.walk-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.walk-btn-main {
+  font-weight: 700;
+}
+
+.walk-btn-sub {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.85;
 }

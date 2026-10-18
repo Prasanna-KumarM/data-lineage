@@ -11,7 +11,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     // Hop 1: two mappings reach the same endpoint, and both continue the same way.
     expect(app.back().disabled).toBe(true)
     expect(app.next().disabled).toBe(true)
-    expect(hopContext(choices)).toContain('Hop 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT')
+    expect(hopContext(choices)).toContain('Step 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT')
     const root = cardsIn(choices)
     expect(root).toHaveLength(2)
     const chain = root.find((c) => c.textContent?.includes('1 upstream choice'))!
@@ -20,7 +20,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     await user.click(app.next())
 
     // Hop 2: the sibling root route is gone.
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 2 · upstream of CM_CLO_OFFER.e_fdk_mt'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 2 · upstream of CM_CLO_OFFER.e_fdk_mt'))
     await waitFor(() => expect(cardTitles(choices)).toEqual(['FSD_FO_DESKS.FDK_MT']))
     expect(app.back().disabled).toBe(false)
     expect(app.next().disabled).toBe(true)
@@ -31,14 +31,14 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     await user.click(app.next())
 
     // Hop 3: the enrichment lookup.
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 3 · upstream of FSD_FO_DESKS.FDK_MT'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 3 · upstream of FSD_FO_DESKS.FDK_MT'))
     await waitFor(() => expect(cardTitles(choices)).toEqual(['CM_CLO_OFFER.e_bok_code']))
     expect(cardsIn(choices)[0].textContent).toContain('Lookup')
     await user.click(cardsIn(choices)[0])
     await user.click(app.next())
 
     // Hop 4: three sibling terminal columns.
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 4 · upstream of CM_CLO_OFFER.e_bok_code'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 4 · upstream of CM_CLO_OFFER.e_bok_code'))
     await waitFor(() => expect(cardTitles(choices)).toHaveLength(3))
     expect(cardTitles(choices)).toEqual([
       'CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',
@@ -52,7 +52,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
 
     // Back restores each earlier level with its selection.
     await user.click(app.back())
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 3'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 3'))
     expect(cardTitles(choices)).toEqual(['CM_CLO_OFFER.e_bok_code'])
     expect(pressed(cardsIn(choices)[0])).toBe(true)
     await user.click(app.back())
@@ -60,7 +60,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     expect(pressed(cardsIn(choices)[0])).toBe(true)
     await user.click(app.back())
 
-    expect(hopContext(choices)).toContain('Hop 1')
+    expect(hopContext(choices)).toContain('Step 1')
     const restored = cardsIn(choices)
     expect(restored).toHaveLength(2)
     expect(restored.map(pressed)).toEqual([true, false])
@@ -111,7 +111,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     const branching = cardsIn(choices)[2]
     await user.click(branching)
     await user.click(next())
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 2 · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 2 · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
     await waitFor(() => expect(cardsIn(choices).length).toBe(1))
     expect(cardTitles(choices)).not.toContain('AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE')
     await waitFor(() => expect(sourceNames(sources).length).toBeGreaterThan(0))
@@ -131,15 +131,15 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     const { user, choices, next } = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('1 upstream choice'))!)
     await user.click(next())
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 2'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 2'))
 
     await user.selectOptions(select('Target Object'), 'AR_PAR_LOAN_EVENTS')
     await waitFor(() => expect(optionTexts(select('Target Column')).length).toBeGreaterThan(1))
     await user.selectOptions(select('Target Column'), 'MDE_CODE')
     const workspace = await screen.findByRole('region', { name: 'Lineage session' })
     const fresh = within(workspace).getByRole('region', { name: 'Upstream choices' })
-    await waitFor(() => expect(hopContext(fresh)).toContain('Hop 1 · upstream of AR_PAR_LOAN_EVENTS.MDE_CODE'))
-    expect(within(fresh).getByRole('button', { name: 'Back' }).hasAttribute('disabled')).toBe(true)
+    await waitFor(() => expect(hopContext(fresh)).toContain('Step 1 · upstream of AR_PAR_LOAN_EVENTS.MDE_CODE'))
+    expect(within(fresh).getByRole('button', { name: /^Back/ }).hasAttribute('disabled')).toBe(true)
     expect(cardsIn(fresh).every((c) => !pressed(c))).toBe(true)
   })
 })

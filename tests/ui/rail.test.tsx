@@ -102,7 +102,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     await waitFor(() => expect(railGlyphs(rail).filter((g) => g === FILLED)).toHaveLength(2))
 
     await user.click(within(rail).getByRole('button', { name: /^Hop 1:/ }))
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT'))
     const restored = cardsIn(choices)
     expect(restored).toHaveLength(2)
     expect(pressed(restored.find((c) => c.textContent?.includes('1 upstream choice'))!)).toBe(true)
@@ -122,7 +122,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     await waitFor(() => expect(railGlyphs(rail).filter((g) => g === FILLED)).toHaveLength(3))
 
     await user.click(within(rail).getByRole('button', { name: /^Hop 2:/ }))
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 2'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 2'))
     expect(railGlyphs(rail).filter((g) => g === FILLED)).toHaveLength(1)
     expect(cardsIn(choices)).toHaveLength(1)
     expect(pressed(cardsIn(choices)[0])).toBe(true)
@@ -140,7 +140,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     dot.focus()
     expect(document.activeElement).toBe(dot)
     await user.keyboard('{Enter}')
-    await waitFor(() => expect(hopContext(choices)).toContain('Hop 1'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Step 1'))
   })
 
   it('keeps a textual breadcrumb that follows the walk', async () => {

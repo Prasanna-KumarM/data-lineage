@@ -109,26 +109,93 @@ function Session({
 
   const selected = list.status === 'success' ? list.data.find((c) => c.step_id === nav.selectedStepId) : undefined
   const canNext = Boolean(selected?.has_more_upstream)
-  const endpoint = parent ? `${parent.source_object_name}.${parent.source_column_name}` : `${object.object_name}.${column.column_name}`
+  const endpointOf = (c: { source_object_name: string; source_column_name: string }) => `${c.source_object_name}.${c.source_column_name}`
+  const targetLabel = `${object.object_name}.${column.column_name}`
+  const endpoint = parent ? endpointOf(parent) : targetLabel
+  const backLabel = depth === 0 ? null : depth === 1 ? targetLabel : endpointOf(nav.path[depth - 2])
+  const allTerminal = list.status === 'success' && list.data.length > 0 && list.data.every((c) => !c.has_more_upstream)
+  const goBack = useCallback(() => dispatch({ type: 'back' }), [])
+  const goNext = () => selected && canNext && dispatch({ type: 'next', choice: selected })
+
+  const remaining = remainingDepth.status === 'success' ? remainingDepth.data : null
+  const stepText = (() => {
+    const base = `Step ${depth + 1}`
+    if (!selected || !remaining || remaining.is_terminal) return base
+    const min = depth + 1 + (remaining.remaining_hops_exact ?? remaining.remaining_hops_min ?? 0)
+    const max = depth + 1 + (remaining.remaining_hops_exact ?? remaining.remaining_hops_max ?? 0)
+    return min === max ? `${base} of ${min}` : `${base} of ${min}–${max}`
+  })()
+
+  const instruction = (() => {
+    if (list.status !== 'success') return 'Loading the next mappings…'
+    if (allTerminal) {
+      return depth === 0
+        ? 'This column maps directly to its ultimate sources; there is nothing further to follow.'
+        : 'You have reached an ultimate source. Press Back to try another branch.'
+    }
+    if (!selected) return 'Pick the mapping you want to follow, then press Next.'
+    if (canNext) return `Press Next to see where ${endpointOf(selected)} comes from.`
+    return `${endpointOf(selected)} is an ultimate source. Pick another mapping or press Back.`
+  })()
+
+  // Arrow keys step through the path unless the user is typing or a dialog is open.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey || detailStepId) return
+      const el = event.target as HTMLElement | null
+      if (el && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName)) return
+      if (event.key === 'ArrowLeft' && depth > 0) goBack()
+      else if (event.key === 'ArrowRight' && selected && canNext) dispatch({ type: 'next', choice: selected })
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [depth, selected, canNext, detailStepId, goBack])
 
   return (
     <div className="workspace" role="region" aria-label="Lineage session">
       <TargetPanel project={target.project} object={object} allObjects={allObjects} column={column} />
 
       <section className="panel choices-panel" aria-label="Upstream choices">
-        <div className="panel-head">
-          <h2 className="panel-title">Upstream choices</h2>
-          <span className="hop-badge">Hop {depth + 1}</span>
+        <div className="walk-bar">
+          <div className="panel-head">
+            <h2 className="panel-title">Where does this come from?</h2>
+            <span className="hop-badge">{stepText}</span>
+          </div>
+          <p className="walk-instruction" aria-live="polite">
+            {instruction}
+          </p>
+          <div className="walk-controls">
+            <button type="button" className="walk-btn" onClick={goBack} disabled={depth === 0}>
+              <span className="walk-btn-main">
+                <span aria-hidden="true">‹</span> Back
+              </span>
+              <span className="walk-btn-sub">{backLabel ? `to ${backLabel}` : 'Start of path'}</span>
+            </button>
+            <HopRail path={nav.path} selected={selected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
+            <button
+              type="button"
+              className="walk-btn primary"
+              onClick={goNext}
+              disabled={!canNext}
+              title={selected && !canNext ? 'Nothing further upstream' : undefined}
+            >
+              <span className="walk-btn-main">
+                Next <span aria-hidden="true">›</span>
+              </span>
+              <span className="walk-btn-sub">
+                {selected ? (canNext ? `Go into ${endpointOf(selected)}` : 'Nothing further upstream') : 'Pick a mapping first'}
+              </span>
+            </button>
+          </div>
         </div>
 
         <div className="block">
           <h3 className="block-title">Your path</h3>
-          <HopRail path={nav.path} selected={selected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
-          <Breadcrumb targetLabel={`${object.object_name}.${column.column_name}`} path={nav.path} selected={selected} />
+          <Breadcrumb targetLabel={targetLabel} path={nav.path} selected={selected} />
         </div>
 
         <div className="block">
-          <h3 className="block-title">Choose the next mapping</h3>
+          <h3 className="block-title">Pick one to follow</h3>
           <p className="context">
             Upstream of <strong>{endpoint}</strong>
           </p>
@@ -149,29 +216,6 @@ function Session({
           )}
         </div>
 
-        <div className="block actions">
-          <div className="nav-actions">
-            <button type="button" onClick={() => dispatch({ type: 'back' })} disabled={depth === 0}>
-              Back
-            </button>
-            <button
-              type="button"
-              className="primary"
-              onClick={() => selected && dispatch({ type: 'next', choice: selected })}
-              disabled={!canNext}
-              title={selected && !canNext ? 'Nothing further upstream' : undefined}
-            >
-              Next
-            </button>
-          </div>
-          <p className="action-hint">
-            {!selected
-              ? 'Select a mapping to continue.'
-              : canNext
-                ? 'Next moves into the selected mapping.'
-                : 'Nothing further upstream from this mapping.'}
-          </p>
-        </div>
       </section>
 
       <section className="panel" aria-label="Ultimate sources">
