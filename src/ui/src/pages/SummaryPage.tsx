@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ApiClient } from '../api/client'
 import type { TargetObject } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatRoute, useNavigate, type Route } from '../routing'
 import { ErrorNotice, LoadingNotice } from '../components/Notices'
+import { GraphDialog } from '../components/GraphDialog'
 import { objectLabel } from '../components/objectLabel'
 import { SummaryTable } from '../components/SummaryTable'
 import { TableSearch } from '../components/TableSearch'
@@ -20,9 +21,13 @@ export function SummaryPage({ client, route }: Props) {
   const navigate = useNavigate()
   const projects = useAsync((signal) => client.projects(signal), 'projects')
   const [chosenProject, setChosenProject] = useState<string | null>(null)
+  const [graphColumn, setGraphColumn] = useState<{ id: string; name: string } | null>(null)
+  const closeGraph = useCallback(() => setGraphColumn(null), [])
 
   const names = projects.status === 'success' ? projects.data.map((p) => p.project_name) : []
   const project = route.project ?? chosenProject ?? (names.length === 1 ? names[0] : null)
+
+  useEffect(() => setGraphColumn(null), [project, route.objectId])
 
   useEffect(() => {
     if (route.project === null && chosenProject === null && names.length === 1) setChosenProject(names[0])
@@ -89,7 +94,17 @@ export function SummaryPage({ client, route }: Props) {
                 onOpenColumn={(column) =>
                   navigate({ name: 'lineage', project, objectId: route.objectId, columnId: column.column_id })
                 }
+                onOpenGraph={(column) => setGraphColumn({ id: column.column_id, name: column.column_name })}
               />
+              {graphColumn && (
+                <GraphDialog
+                  client={client}
+                  target={{ project, objectId: route.objectId, columnId: graphColumn.id }}
+                  tableName={summary.data.object.object_name}
+                  columnName={graphColumn.name}
+                  onClose={closeGraph}
+                />
+              )}
             </>
           )}
         </>

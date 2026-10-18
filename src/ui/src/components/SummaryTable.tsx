@@ -104,9 +104,10 @@ function sortColumns(columns: SummaryColumn[], key: SortKey): SummaryColumn[] {
 interface Props {
   summary: TableSummary
   onOpenColumn: (column: SummaryColumn) => void
+  onOpenGraph: (column: SummaryColumn) => void
 }
 
-export function SummaryTable({ summary, onOpenColumn }: Props) {
+export function SummaryTable({ summary, onOpenColumn, onOpenGraph }: Props) {
   const [filter, setFilter] = useState('')
   const [sort, setSort] = useState<SortKey>('name')
   const [openPaths, setOpenPaths] = useState<Set<string>>(new Set())
@@ -187,6 +188,17 @@ export function SummaryTable({ summary, onOpenColumn }: Props) {
                 <button type="button" className="link" onClick={() => onOpenColumn(column)}>
                   {column.column_name}
                 </button>
+                {column.has_lineage && (
+                  <button
+                    type="button"
+                    className="graph-open"
+                    aria-label={`Graph of ${column.column_name}`}
+                    title="Show the lineage graph"
+                    onClick={() => onOpenGraph(column)}
+                  >
+                    <span aria-hidden="true">⦿</span> Graph
+                  </button>
+                )}
                 <span className="card-badges">
                   {!column.has_lineage && <span className="badge muted">No lineage</span>}
                   {FLAGS.filter((f) => column.flags[f.key]).map((f) => (
