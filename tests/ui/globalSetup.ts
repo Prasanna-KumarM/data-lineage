@@ -39,7 +39,8 @@ export default async function setup() {
 
   const port = await freePort()
   const base = `http://127.0.0.1:${port}`
-  const child = spawn(python, ['-m', 'uvicorn', 'lineage_api.app:app', '--host', '127.0.0.1', '--port', String(port)], {
+  // A long keep-alive stops the server closing an idle socket just as the test client reuses it.
+  const child = spawn(python, ['-m', 'uvicorn', 'lineage_api.app:app', '--host', '127.0.0.1', '--port', String(port), '--timeout-keep-alive', '300'], {
     cwd: path.join(root, 'src/api'),
     env: { ...process.env, LINEAGE_DB: db },
     stdio: 'ignore',

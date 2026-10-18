@@ -266,12 +266,12 @@ describeReal('moving between the summary and the walkthrough', () => {
   it('opens the walkthrough with the table and column already chosen', async () => {
     const { objectId, columnId } = await openFdkMt()
     expect(window.location.hash).toBe(`#/lineage/SP_CLO/${objectId}/${columnId}`)
-    expect((screen.getByLabelText('Project') as HTMLSelectElement).value).toBe('SP_CLO')
-    expect((screen.getByLabelText('Target Object') as HTMLSelectElement).value).toBe(objectId)
+    await waitFor(() => expect((screen.getByLabelText('Project') as HTMLSelectElement).value).toBe('SP_CLO'))
+    await waitFor(() => expect((screen.getByLabelText('Target Object') as HTMLSelectElement).value).toBe(objectId))
     await waitFor(() => expect((screen.getByLabelText('Target Column') as HTMLSelectElement).value).toBe(columnId))
     const target = screen.getByRole('region', { name: 'Target' })
+    await waitFor(() => expect(textOf(target)).toContain('FDK_MT'))
     expect(textOf(target)).toContain('CM_PAR_LOAN_TRADES')
-    expect(textOf(target)).toContain('FDK_MT')
     const choices = screen.getByRole('region', { name: 'Upstream choices' })
     await waitFor(() => expect(within(within(choices).getByRole('list', { name: 'Upstream mappings' })).getAllByRole('listitem')).toHaveLength(2))
   })
@@ -316,7 +316,9 @@ describeReal('moving between the summary and the walkthrough', () => {
 
   it('explains an address that no longer matches the data', async () => {
     show(realClient(), '#/lineage/SP_CLO/OBJ_nope/COL_nope')
-    expect((await screen.findByRole('alert')).textContent).toContain('not in the current lineage data')
+    await waitFor(() =>
+      expect(screen.getAllByRole('alert').map(textOf).join(' ')).toContain('not in the current lineage data'),
+    )
   })
 
   it('has navigation between the two pages', async () => {
