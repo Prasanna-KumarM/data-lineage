@@ -2,6 +2,7 @@ import type {
   Project,
   RemainingDepth,
   StepDetail,
+  TableSummary,
   TargetColumn,
   TargetObject,
   TargetRef,
@@ -25,6 +26,8 @@ export interface ApiClient {
   projects(signal?: AbortSignal): Promise<Project[]>
   targets(project: string, signal?: AbortSignal): Promise<TargetObject[]>
   columns(project: string, objectId: string, signal?: AbortSignal): Promise<TargetColumn[]>
+  searchTargets(project: string, query: string, signal?: AbortSignal): Promise<TargetObject[]>
+  tableSummary(project: string, objectId: string, signal?: AbortSignal): Promise<TableSummary>
   rootChoices(target: TargetRef, signal?: AbortSignal): Promise<UpstreamResponse>
   upstream(stepId: string, signal?: AbortSignal): Promise<UpstreamResponse>
   remainingDepth(stepId: string, signal?: AbortSignal): Promise<RemainingDepth>
@@ -74,6 +77,9 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl }: ApiClien
     targets: (project, signal) => get('/targets', { project }, signal),
     columns: (project, objectId, signal) =>
       get(`/targets/${encodeURIComponent(objectId)}/columns`, { project }, signal),
+    searchTargets: (project, q, signal) => get('/targets/search', { project, q }, signal),
+    tableSummary: (project, objectId, signal) =>
+      get(`/targets/${encodeURIComponent(objectId)}/summary`, { project }, signal),
     rootChoices: (target, signal) => get('/lineage/upstream', targetParams(target), signal),
     upstream: (stepId, signal) => get('/lineage/upstream', { step_id: stepId }, signal),
     remainingDepth: (stepId, signal) => get('/lineage/remaining-depth', { step_id: stepId }, signal),

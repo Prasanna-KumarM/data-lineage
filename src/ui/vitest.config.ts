@@ -23,6 +23,7 @@ export default defineConfig({
     globals: true,
     include: ['tests/ui/**/*.test.{ts,tsx}'],
     globalSetup: ['tests/ui/globalSetup.ts'],
+    setupFiles: ['tests/ui/setup.ts'],
     // Walk-through tests make several real API calls per hop.
     testTimeout: 20000,
   },

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from '../../src/ui/src/App'
 import type { ApiClient } from '../../src/ui/src/api/client'
@@ -17,6 +17,9 @@ export const sourceNames = (scope: HTMLElement) =>
   within(scope).queryAllByRole('listitem').map((li) => li.querySelector('.source-name')?.textContent)
 
 export async function openApp(client: ApiClient, objectName: string, columnName: string) {
+  // A fresh start: any earlier app is removed and the address no longer preselects a target.
+  cleanup()
+  window.history.replaceState(null, '', '#/lineage')
   const user = userEvent.setup()
   render(<App client={client} />)
   await waitFor(() => expect(optionTexts(select('Target Object')).length).toBeGreaterThan(1))

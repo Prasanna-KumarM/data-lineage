@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Starts the lineage API and UI together; Ctrl+C stops both.
+# Starts the lineage API and UI together; Ctrl+C stops both. A previous run still holding the ports is stopped first.
 # Usage: ./start.sh [--check] [--install-only] [--skip-install] [--migrate] [path/to/lineage.db]
 #   --check         report what is installed and ready, then exit
 #   --install-only  install missing Python/UI packages, then exit
@@ -128,9 +128,26 @@ fi
 # --- start --------------------------------------------------------------------------------
 
 db_exists || fail "lineage database not found: $DB"
-for port in "$API_PORT" "$UI_PORT"; do
-  port_free "$port" || fail "port $port is already in use (set API_PORT or UI_PORT to use another)"
-done
+
+# Restart: stop a previous run of this project that still holds a port; refuse to touch anything else.
+stop_previous() {
+  local port="$1" pid cwd pids=()
+  for pid in $(lsof -nP -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null); do
+    cwd="$(lsof -a -p "$pid" -d cwd -Fn 2>/dev/null | sed -n 's/^n//p')"
+    case "$cwd" in
+      "$ROOT"|"$ROOT"/*) pids+=("$pid") ;;
+      *) fail "port $port is in use by another program (pid $pid); set API_PORT or UI_PORT to use another" ;;
+    esac
+  done
+  [ "${#pids[@]}" -gt 0 ] || return 0
+  echo "Restarting: stopping previous process on port $port (pid ${pids[*]})"
+  kill "${pids[@]}" 2>/dev/null || true
+  for _ in $(seq 1 10); do port_free "$port" && return 0; sleep 0.5; done
+  kill -9 "${pids[@]}" 2>/dev/null || true
+  sleep 0.5
+  port_free "$port" || fail "could not free port $port"
+}
+for port in "$API_PORT" "$UI_PORT"; do stop_previous "$port"; done
 
 if ! db_has_business_process_columns; then
   if [ "$MIGRATE" -eq 1 ]; then
