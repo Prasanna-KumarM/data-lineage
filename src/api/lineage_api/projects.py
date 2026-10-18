@@ -53,7 +53,7 @@ class ProjectRegistry:
 
     def entries(self) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
-        seen: set[str] = set()
+        owner: dict[str, str] = {}
         with self._lock:
             files = self._files()
             for stale in set(self._cache) - set(files):
@@ -66,9 +66,15 @@ class ProjectRegistry:
                     cached = (stamp, self._read(path))
                     self._cache[path] = cached
                 for entry in cached[1]:
-                    if entry["project_name"] in seen:
-                        continue  # the first folder (alphabetically) keeps a name used twice
-                    seen.add(entry["project_name"])
+                    name = entry["project_name"]
+                    if name in owner:
+                        # The first folder (alphabetically) keeps a name used twice; show the other one as unusable.
+                        if entry["folder"] == name or entry["folder"] in owner:
+                            continue
+                        entry = {**entry, "project_name": entry["folder"], "ready": False,
+                                 "problem": f"Its database also reports the project name {name}, already used by the folder {owner[name]}."}
+                        name = entry["project_name"]
+                    owner[name] = entry["folder"]
                     out.append(entry)
         return sorted(out, key=lambda e: e["project_name"])
 
