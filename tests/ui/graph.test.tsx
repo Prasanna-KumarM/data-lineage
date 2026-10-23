@@ -2,6 +2,7 @@ import { cleanup, render, screen, waitFor, within } from '@testing-library/react
 import userEvent from '@testing-library/user-event'
 import App from '../../src/ui/src/App'
 import type { ApiClient } from '../../src/ui/src/api/client'
+import { toFlow } from '../../src/ui/src/components/LineageGraph'
 import { layoutGraph } from '../../src/ui/src/components/graphLayout'
 import { describeReal, realClient } from './helpers'
 
@@ -15,7 +16,7 @@ function show(client: ApiClient, hash: string) {
 
 async function openTable(objectName: string, client: ApiClient = realClient()) {
   const objects = await realClient().targets('SP_CLO')
-  const object = objects.find((o) => o.object_name === objectName && o.source_project === 'SP_CLO')!
+  const object = objects.find((o) => o.object_name === objectName)!
   const user = show(client, `#/summary/SP_CLO/${object.object_id}`)
   await screen.findByRole('table')
   return { user, object }
@@ -57,6 +58,8 @@ describeReal('graph view of a column on the real SP_CLO lineage', () => {
     expect(nodesOf(dialog, 'target')).toHaveLength(1)
     expect(nodesOf(dialog, 'intermediate')).toHaveLength(3)
     const sources = nodesOf(dialog, 'source')
+    expect(nodesOf(dialog, 'target')[0].querySelector('.react-flow__handle-right')).not.toBeNull()
+    expect(sources[0].querySelector('.react-flow__handle-left')).not.toBeNull()
     expect(sources.map((s) => s.querySelector('.graph-node-name')?.textContent)).toEqual([
       'CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',
       'CM_CLO_OFFER.OFR_HTC_BOOK_CODE',
@@ -128,7 +131,7 @@ describeReal('graph view of a column on the real SP_CLO lineage', () => {
   it('lays the graph out left to right by hop without overlapping nodes', async () => {
     const client = realClient()
     const objects = await client.targets('SP_CLO')
-    const object = objects.find((o) => o.object_name === 'CM_PAR_LOAN_TRADES' && o.source_project === 'SP_CLO')!
+    const object = objects.find((o) => o.object_name === 'CM_PAR_LOAN_TRADES')!
     const columns = await client.columns('SP_CLO', object.object_id)
     for (const column of columns) {
       const graph = await client.columnGraph({ project: 'SP_CLO', objectId: object.object_id, columnId: column.column_id })
@@ -145,6 +148,24 @@ describeReal('graph view of a column on the real SP_CLO lineage', () => {
           expect(apart, `${column.column_name}: ${a.id} / ${b.id}`).toBe(true)
         }
       }
+    }
+  })
+
+  it('draws arrows from each source-side node back toward its target-side node', async () => {
+    const client = realClient()
+    const objects = await client.targets('SP_CLO')
+    const object = objects.find((o) => o.object_name === 'CM_PAR_LOAN_TRADES')!
+    const column = (await client.columns('SP_CLO', object.object_id)).find((c) => c.column_name === 'FDK_MT')!
+    const graph = await client.columnGraph({ project: 'SP_CLO', objectId: object.object_id, columnId: column.column_id })
+    const flow = toFlow(graph, null)
+    const positions = new Map(layoutGraph(graph).map((node) => [node.id, node]))
+    const storedEdges = new Map(graph.edges.map((edge) => [edge.edge_id, edge]))
+
+    for (const edge of flow.edges) {
+      const stored = storedEdges.get(edge.id)!
+      expect(edge.source).toBe(stored.to_node)
+      expect(edge.target).toBe(stored.from_node)
+      expect(positions.get(edge.source)!.x).toBeGreaterThan(positions.get(edge.target)!.x)
     }
   })
 })

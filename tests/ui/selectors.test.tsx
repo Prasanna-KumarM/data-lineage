@@ -18,20 +18,17 @@ describeReal('selector workflow on the real SP_CLO lineage', () => {
     await waitFor(() => expect(select('Project').value).toBe('SP_CLO'))
     await waitForObjects()
     expect(select('Target Object').disabled).toBe(false)
-    expect(optionTexts(select('Target Object'))).toHaveLength(1 + 7)
+    expect(optionTexts(select('Target Object'))).toHaveLength(1 + 5)
     expect(select('Target Column').disabled).toBe(true)
   })
 
-  it('labels same-named objects with their source project, others plainly', async () => {
+  it('lists the Target component once rather than duplicating intermediate root objects', async () => {
     render(<App client={realClient()} />)
     await waitForObjects()
     const labels = optionTexts(select('Target Object'))
     expect(labels).toContain('AR_PAR_LOAN_EVENTS')
-    const events = labels.filter((l) => l?.startsWith('PAR_UNPROCESSED_EVENTS'))
-    expect(events).toHaveLength(2)
-    expect(events.some((l) => l?.includes('GP_SHARED'))).toBe(true)
-    expect(events.some((l) => l?.includes('SP_CLO'))).toBe(true)
-    expect(new Set(events).size).toBe(2)
+    const events = labels.filter((l) => l === 'PAR_UNPROCESSED_EVENTS')
+    expect(events).toHaveLength(1)
   })
 
   it('object selection loads its columns; column selection initializes the lineage session', async () => {

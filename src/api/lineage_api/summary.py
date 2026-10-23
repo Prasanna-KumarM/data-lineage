@@ -194,14 +194,20 @@ class TableSummaryCache:
         self.compute_count = 0
 
     def get(self, conn: sqlite3.Connection, project: str, object_id: str) -> dict[str, Any]:
+        return self.get_computed(
+            conn,
+            (project, object_id),
+            lambda: summarize_table(conn, project, object_id),
+        )
+
+    def get_computed(self, conn: sqlite3.Connection, key: tuple, compute) -> dict[str, Any]:
         fingerprint = db_fingerprint(conn)
-        key = (project, object_id)
         with self._lock:
             cached = self._entries.get(key)
             if cached and cached[0] == fingerprint:
                 self._entries.move_to_end(key)
                 return cached[1]
-            summary = summarize_table(conn, project, object_id)
+            summary = compute()
             self.compute_count += 1
             self._entries[key] = (fingerprint, summary)
             while len(self._entries) > self._max:

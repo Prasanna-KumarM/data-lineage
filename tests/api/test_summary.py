@@ -268,7 +268,7 @@ def test_search_endpoint(client):
     assert r.status_code == 200
     assert [o["object_name"] for o in r.json()] == ["AR_PAR_LOAN_EVENTS", "CM_PAR_LOAN_TRADES"]
     assert set(r.json()[0]) == {"object_id", "object_name", "source_project", "business_processes", "column_count"}
-    assert len(client.get("/targets/search", params={"project": "SP_CLO"}).json()) == 7
+    assert len(client.get("/targets/search", params={"project": "SP_CLO"}).json()) == 5
     assert client.get("/targets/search", params={"project": "SP_CLO", "q": "zzz"}).json() == []
 
 

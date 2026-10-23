@@ -36,9 +36,12 @@ def sp_clo(lineage_db_path):
         pytest.skip("SP_CLO-specific expectations")
 
 
-def _target(client, object_name, column_name, source_project="SP_CLO"):
+def _target(client, object_name, column_name, source_project=None):
     objects = client.get("/targets", params={"project": "SP_CLO"}).json()
-    obj = next(o for o in objects if o["object_name"] == object_name and o["source_project"] == source_project)
+    obj = next(
+        o for o in objects
+        if o["object_name"] == object_name and (source_project is None or o["source_project"] == source_project)
+    )
     cols = client.get(f"/targets/{obj['object_id']}/columns", params={"project": "SP_CLO"}).json()
     col = next(c for c in cols if c["column_name"] == column_name)
     return {"project": "SP_CLO", "object_id": obj["object_id"], "column_id": col["column_id"]}
@@ -62,7 +65,7 @@ def test_targets_and_columns(client, sp_clo):
     r = client.get("/targets", params={"project": "SP_CLO"})
     assert r.status_code == 200
     got = [(o["object_name"], o["source_project"], o["column_count"]) for o in r.json()]
-    assert got[0] == ("AR_PAR_LOAN_EVENTS", "SP_CLO", 46) and len(got) == 7
+    assert got[0] == ("AR_PAR_LOAN_EVENTS", "GP_SHARED", 46) and len(got) == 5
     obj = r.json()[0]
     cols = client.get(f"/targets/{obj['object_id']}/columns", params={"project": "SP_CLO"}).json()
     assert len(cols) == 46 and {"column_id", "column_name", "step_count"} == set(cols[0])
@@ -70,15 +73,17 @@ def test_targets_and_columns(client, sp_clo):
 
 
 def test_upstream_root_choices_and_children(client, sp_clo):
-    t = _target(client, "PAR_UNPROCESSED_EVENTS", "CONTRACT_ID")
+    t = _target(client, "PAR_UNPROCESSED_EVENTS", "PAR_REASON")
     r = client.get("/lineage/upstream", params=t)
     assert r.status_code == 200
     choices = r.json()["choices"]
-    assert [c["source_column_name"] for c in choices] == ["AEF_EVENT_CODE", "AEF_OFFER_ID", "e_contract_id"]
-    assert [c["has_more_upstream"] for c in choices] == [False, False, True]
-    children = client.get("/lineage/upstream", params={"step_id": choices[2]["step_id"]}).json()["choices"]
-    assert len(children) == 1 and children[0]["target_column_name"] == "e_contract_id"
-    assert client.get("/lineage/upstream", params={"step_id": choices[0]["step_id"]}).json() == {"choices": []}
+    assert len(choices) == 5
+    assert sum(c["has_more_upstream"] for c in choices) == 2
+    terminal = next(c for c in choices if c["source_object_name"].startswith('"Grid data'))
+    assert client.get("/lineage/upstream", params={"step_id": terminal["step_id"]}).json() == {"choices": []}
+    branch = next(c for c in choices if c["has_more_upstream"])
+    children = client.get("/lineage/upstream", params={"step_id": branch["step_id"]}).json()["choices"]
+    assert len(children) == 1 and children[0]["target_column_name"] == "e_book_cd"
 
 
 def test_ultimate_sources_full_and_filtered_by_step(client, sp_clo):

@@ -9,8 +9,9 @@ describeReal('api client against the real lineage API', () => {
   it('lists target objects and columns', async () => {
     const client = realClient()
     const targets = await client.targets('SP_CLO')
-    expect(targets).toHaveLength(7)
+    expect(targets).toHaveLength(5)
     const events = targets.find((o) => o.object_name === 'AR_PAR_LOAN_EVENTS')!
+    expect(events.source_project).toBe('GP_SHARED')
     const columns = await client.columns('SP_CLO', events.object_id)
     expect(columns).toHaveLength(46)
     expect(columns.find((c) => c.column_name === 'MDE_CODE')?.step_count).toBe(3)

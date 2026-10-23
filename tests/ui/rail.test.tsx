@@ -52,21 +52,21 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
   })
 
   it('selecting a terminal choice adds no hop to the path', async () => {
-    const { user, choices, rail, crumbs: nav } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
+    const { user, choices, rail, crumbs: nav } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
     await user.click(cardsIn(choices).find((c) => c.textContent?.includes('nothing further upstream'))!)
     await waitFor(() => expect(summary(rail)).toBe('End of this branch.'))
     expect(railGlyphs(rail)).toEqual([])
-    expect(crumbs(nav)).toEqual(['PAR_UNPROCESSED_EVENTS.CONTRACT_ID'])
+    expect(crumbs(nav)).toEqual(['PAR_UNPROCESSED_EVENTS.PAR_REASON'])
   })
 
   it('never draws dots for sibling mappings that were not selected', async () => {
     const { user, choices, rail } = await openApp(
       realClient(),
-      'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)',
-      'CONTRACT_ID',
+      'PAR_UNPROCESSED_EVENTS',
+      'PAR_REASON',
     )
-    expect(cardsIn(choices)).toHaveLength(3)
-    await user.click(cardsIn(choices)[2])
+    expect(cardsIn(choices)).toHaveLength(5)
+    await user.click(cardsIn(choices).find((card) => card.textContent?.includes('1 upstream choice'))!)
     await waitFor(() => expect(railGlyphs(rail)[0]).toBe(CURRENT))
     expect(railGlyphs(rail).filter((g) => g === CURRENT || g === FILLED)).toHaveLength(1)
   })
@@ -79,13 +79,13 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     }
     const { user, choices, rail } = await openApp(
       realClient({ fetchImpl: spy }),
-      'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)',
-      'CONTRACT_ID',
+      'PAR_UNPROCESSED_EVENTS',
+      'PAR_REASON',
     )
-    const cards = cardsIn(choices)
-    await user.click(cards[0])
+    const branches = cardsIn(choices).filter((card) => card.textContent?.includes('1 upstream choice'))
+    await user.click(branches[0])
     await waitFor(() => expect(calls.filter((c) => c.includes('remaining-depth'))).toHaveLength(1))
-    await user.click(cards[2])
+    await user.click(branches[1])
     await waitFor(() => expect(railGlyphs(rail).length).toBeGreaterThan(0))
     const depthCalls = calls.filter((c) => c.includes('remaining-depth'))
     expect(depthCalls).toHaveLength(2)

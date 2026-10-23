@@ -20,10 +20,18 @@ from lineage_api.db import (
 )
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
-from lineage_api.lineage_graph import build_column_graph
+from lineage_api.lineage_graph import build_column_graph, build_target_graph
 from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.summary import TableSummaryCache
+from lineage_api.target_catalog import (
+    _has_target_components,
+    find_target,
+    list_target_columns as list_target_component_columns,
+    target_definitions,
+    summarize_target,
+    target_column_pairs,
+)
 from lineage_api.upstream import StepNotFound, get_root_choices, get_upstream_choices
 
 
@@ -79,15 +87,30 @@ def _require_project(conn: sqlite3.Connection, project: str) -> None:
         raise ApiError(404, "PROJECT_NOT_FOUND", f"Unknown project: {project}")
 
 
+def _api_targets(conn: sqlite3.Connection, project: str) -> list[dict]:
+    if not _has_target_components(conn):
+        return list_target_objects(conn, project)
+    return [
+        {key: value for key, value in target.items() if not key.startswith("_")}
+        for target in target_definitions(conn, project)
+    ]
+
+
+def _api_columns(conn: sqlite3.Connection, project: str, object_id: str) -> list[dict]:
+    if _has_target_components(conn):
+        return list_target_component_columns(conn, project, object_id)
+    return list_target_columns(conn, project, object_id)
+
+
 def _require_object(conn: sqlite3.Connection, project: str, object_id: str) -> None:
     _require_project(conn, project)
-    if not any(o["object_id"] == object_id for o in list_target_objects(conn, project)):
+    if not any(o["object_id"] == object_id for o in _api_targets(conn, project)):
         raise ApiError(404, "TARGET_OBJECT_NOT_FOUND", f"Unknown target object: {object_id}")
 
 
 def _require_column(conn: sqlite3.Connection, project: str, object_id: str, column_id: str) -> None:
     _require_object(conn, project, object_id)
-    if not any(c["column_id"] == column_id for c in list_target_columns(conn, project, object_id)):
+    if not any(c["column_id"] == column_id for c in _api_columns(conn, project, object_id)):
         raise ApiError(404, "TARGET_COLUMN_NOT_FOUND", f"Unknown target column: {column_id}")
 
 
@@ -158,24 +181,36 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
     @app.get("/targets", response_model=list[schemas.TargetObjectOut])
     def targets(project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         _require_project(conn, project)
-        return list_target_objects(conn, project)
+        return _api_targets(conn, project)
 
     @app.get("/targets/search", response_model=list[schemas.TargetObjectOut])
     def search_targets(project: str = Query(...), q: str = "", conn: sqlite3.Connection = Depends(get_conn)):
         _require_project(conn, project)
-        return search_target_objects(conn, project, q)
+        if not _has_target_components(conn):
+            return search_target_objects(conn, project, q)
+        needle = q.strip().casefold()
+        return [t for t in _api_targets(conn, project) if not needle or needle in t["object_name"].casefold()]
 
     @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
     def table_summary(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         _require_object(conn, project, object_id)
+        target = find_target(conn, project, object_id) if _has_target_components(conn) else None
+        if target is not None:
+            public_target = {key: value for key, value in target.items() if not key.startswith("_")}
+            summary = app.state.summary_cache.get_computed(
+                conn,
+                (project, object_id),
+                lambda: summarize_target(conn, project, object_id),
+            )
+            return {**summary, "object": public_target}
         summary = app.state.summary_cache.get(conn, project, object_id)
-        obj = next(o for o in list_target_objects(conn, project) if o["object_id"] == object_id)
+        obj = next(o for o in _api_targets(conn, project) if o["object_id"] == object_id)
         return {**summary, "object": obj}
 
     @app.get("/targets/{object_id}/columns", response_model=list[schemas.TargetColumnOut])
     def target_columns(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         _require_object(conn, project, object_id)
-        return list_target_columns(conn, project, object_id)
+        return _api_columns(conn, project, object_id)
 
     @app.get("/lineage/upstream", response_model=schemas.UpstreamOut)
     def upstream(
@@ -191,6 +226,15 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         if project is None or object_id is None or column_id is None:
             raise ApiError(400, "INVALID_REQUEST", "Provide step_id, or project, object_id and column_id.")
         _require_column(conn, project, object_id, column_id)
+        pairs = target_column_pairs(conn, project, object_id, column_id)
+        if pairs:
+            return {
+                "choices": [
+                    choice
+                    for bp_id, root_id, root_column_id in pairs
+                    for choice in get_root_choices(conn, project, root_id, root_column_id, bp_id)
+                ]
+            }
         return {"choices": get_root_choices(conn, project, object_id, column_id)}
 
     @app.get("/lineage/ultimate-sources", response_model=schemas.UltimateSourcesOut)
@@ -203,6 +247,47 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         _require_column(conn, project, object_id, column_id)
+        pairs = target_column_pairs(conn, project, object_id, column_id)
+        if pairs:
+            if step_id:
+                root = conn.execute(
+                    "SELECT business_process_id,root_target_object_id,root_target_column_id FROM business_lineage_step WHERE step_id=?",
+                    (step_id,),
+                ).fetchone()
+                matching = [p for p in pairs if (p[0], p[1], p[2]) == tuple(root)] if root else []
+                if not matching:
+                    raise StepNotFound(step_id)
+                bp_id, root_id, root_column_id = matching[0]
+                resolved = app.state.source_cache.get(
+                    conn, session_id, project, root_id, root_column_id, bp_id
+                )
+                terminal_sources = sources_for_step(resolved, step_id)
+            else:
+                combined: dict[tuple, dict] = {}
+                for bp_id, root_id, root_column_id in pairs:
+                    resolved = app.state.source_cache.get(
+                        conn, session_id, project, root_id, root_column_id, bp_id
+                    )
+                    for source in sources_for_step(resolved):
+                        key = (source["terminal_id"], source["object_id"], source["column_id"],
+                               source["condition"], source["result_expression"])
+                        existing = combined.get(key)
+                        if existing is None:
+                            combined[key] = dict(source)
+                        else:
+                            existing["leaf_relation_types"] = sorted(
+                                set(existing["leaf_relation_types"]) | set(source["leaf_relation_types"])
+                            )
+                terminal_sources = sorted(
+                    combined.values(), key=lambda t: (t["object_name"], t["column_name"], t["terminal_id"])
+                )
+            return {
+                "project": project,
+                "object_id": object_id,
+                "column_id": column_id,
+                "step_id": step_id,
+                "terminal_sources": terminal_sources,
+            }
         resolved = app.state.source_cache.get(conn, session_id, project, object_id, column_id)
         return {
             "project": project,
@@ -220,6 +305,8 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         conn: sqlite3.Connection = Depends(get_conn),
     ):
         _require_column(conn, project, object_id, column_id)
+        if _has_target_components(conn) and target_column_pairs(conn, project, object_id, column_id):
+            return build_target_graph(conn, project, object_id, column_id)
         return build_column_graph(conn, project, object_id, column_id)
 
     @app.get("/lineage/remaining-depth", response_model=schemas.RemainingDepthOut)

@@ -10,10 +10,9 @@ from conftest import ROOT
 sys.path.insert(0, str(ROOT / "src" / "api"))
 
 from lineage_api.app import create_app  # noqa: E402
-from lineage_api.catalog import list_target_objects  # noqa: E402
-from lineage_api.lineage_graph import build_column_graph  # noqa: E402
+from lineage_api.lineage_graph import build_target_graph  # noqa: E402
 from lineage_api.migrations import add_business_process_columns  # noqa: E402
-from lineage_api.summary import summarize_table  # noqa: E402
+from lineage_api.target_catalog import list_target_columns, summarize_target, target_definitions  # noqa: E402
 
 
 @pytest.fixture()
@@ -41,12 +40,12 @@ def sp_clo(real, lineage_db_path):
     return real
 
 
-def _table(conn, name, source_project="SP_CLO"):
+def _table(conn, name, source_project=None):
     obj = next(
-        o for o in list_target_objects(conn, "SP_CLO")
-        if o["object_name"] == name and o["source_project"] == source_project
+        o for o in target_definitions(conn, "SP_CLO")
+        if o["object_name"] == name and (source_project is None or o["source_project"] == source_project)
     )
-    return obj["object_id"], summarize_table(conn, "SP_CLO", obj["object_id"])
+    return obj["object_id"], summarize_target(conn, "SP_CLO", obj["object_id"])
 
 
 def _column(summary, name):
@@ -56,7 +55,7 @@ def _column(summary, name):
 def _graph(conn, name, column):
     object_id, summary = _table(conn, name)
     col = _column(summary, column)
-    return build_column_graph(conn, "SP_CLO", object_id, col["column_id"]), col
+    return build_target_graph(conn, "SP_CLO", object_id, col["column_id"]), col
 
 
 def test_graph_of_a_direct_mapping_is_target_to_source(sp_clo):
@@ -76,7 +75,7 @@ def test_graph_sources_and_hops_agree_with_the_summary(sp_clo):
         for col in summary["columns"]:
             if not col["has_lineage"]:
                 continue
-            g = build_column_graph(sp_clo, "SP_CLO", object_id, col["column_id"])
+            g = build_target_graph(sp_clo, "SP_CLO", object_id, col["column_id"])
             sources = [n for n in g["nodes"] if n["role"] == "source"]
             got = sorted((n["object_name"], n["column_name"], n["condition"] or "", n["hops_min"], n["hops_max"], n["kind"]) for n in sources)
             want = sorted(
@@ -91,7 +90,7 @@ def test_graph_is_connected_downwards_from_the_target(sp_clo):
     for col in summary["columns"]:
         if not col["has_lineage"]:
             continue
-        g = build_column_graph(sp_clo, "SP_CLO", object_id, col["column_id"])
+        g = build_target_graph(sp_clo, "SP_CLO", object_id, col["column_id"])
         ids = {n["node_id"] for n in g["nodes"]}
         assert len(ids) == len(g["nodes"])
         assert all(e["from_node"] in ids and e["to_node"] in ids for e in g["edges"])
@@ -142,7 +141,7 @@ def test_column_without_lineage_gives_an_empty_graph(sp_clo):
     none = next((c for c in summary["columns"] if not c["has_lineage"]), None)
     if none is None:
         pytest.skip("every column has lineage")
-    g = build_column_graph(sp_clo, "SP_CLO", object_id, none["column_id"])
+    g = build_target_graph(sp_clo, "SP_CLO", object_id, none["column_id"])
     assert g["has_lineage"] is False and g["nodes"] == [] and g["edges"] == []
 
 
