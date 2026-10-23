@@ -35,10 +35,19 @@ def _terminal_id(row: sqlite3.Row) -> str:
 
 
 def resolve_terminal_sources(
-    conn: sqlite3.Connection, project: str, object_id: str, column_id: str
+    conn: sqlite3.Connection,
+    project: str,
+    object_id: str,
+    column_id: str,
+    business_process_id: str | None = None,
 ) -> dict[str, Any]:
     """Terminal sources of a target column and, for each step, the terminals below it."""
-    steps = conn.execute(_STEPS_SQL, (project, object_id, column_id)).fetchall()
+    sql = _STEPS_SQL
+    params: tuple = (project, object_id, column_id)
+    if business_process_id is not None:
+        sql += " AND s.business_process_id = ?"
+        params += (business_process_id,)
+    steps = conn.execute(sql, params).fetchall()
 
     graph = StepGraph(steps)
     by_id, kids_of = graph.by_id, graph.kids_of
@@ -124,16 +133,22 @@ class TargetSourceCache:
         self.compute_count = 0
 
     def get(
-        self, conn: sqlite3.Connection, session_id: str, project: str, object_id: str, column_id: str
+        self,
+        conn: sqlite3.Connection,
+        session_id: str,
+        project: str,
+        object_id: str,
+        column_id: str,
+        business_process_id: str | None = None,
     ) -> dict[str, Any]:
         fingerprint = db_fingerprint(conn)
-        target = (project, object_id, column_id)
+        target = (project, object_id, column_id, business_process_id)
         with self._lock:
             cached = self._entries.get(session_id)
             if cached and cached[0] == fingerprint and cached[1] == target:
                 self._entries.move_to_end(session_id)
                 return cached[2]
-            resolved = resolve_terminal_sources(conn, project, object_id, column_id)
+            resolved = resolve_terminal_sources(conn, project, object_id, column_id, business_process_id)
             self.compute_count += 1
             self._entries[session_id] = (fingerprint, target, resolved)
             self._entries.move_to_end(session_id)

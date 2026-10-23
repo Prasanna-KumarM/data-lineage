@@ -89,7 +89,9 @@ def test_each_project_is_served_from_its_own_database(outputs):
     client = TestClient(create_app(outputs_dir=str(outputs)))
     one = client.get("/targets", params={"project": "SP_CLO"}).json()
     two = client.get("/targets", params={"project": "SP_TWO"}).json()
-    assert one and [o["object_id"] for o in one] == [o["object_id"] for o in two]
+    assert one and [(o["object_name"], o["column_count"]) for o in one] == [
+        (o["object_name"], o["column_count"]) for o in two
+    ]
     # A project name from the other database is not found in this one.
     c = sqlite3.connect(outputs / "SP_TWO" / "lineage.db")
     c.execute("UPDATE business_process SET project_name = 'ONLY_IN_TWO'")
@@ -115,10 +117,8 @@ def test_requests_without_a_project_parameter_use_the_project_header(outputs):
 
 def test_summary_and_graph_work_for_a_project_in_the_folder(outputs):
     client = TestClient(create_app(outputs_dir=str(outputs)))
-    c = sqlite3.connect(outputs / "SP_TWO" / "lineage.db")
-    c.row_factory = sqlite3.Row
-    obj = next(o for o in list_target_objects(c, "SP_TWO") if o["object_name"] == "CM_PAR_LOAN_TRADES")
-    c.close()
+    obj = next(o for o in client.get("/targets", params={"project": "SP_TWO"}).json()
+               if o["object_name"] == "CM_PAR_LOAN_TRADES")
     summary = client.get(f"/targets/{obj['object_id']}/summary", params={"project": "SP_TWO"})
     assert summary.status_code == 200
     column = next(x for x in summary.json()["columns"] if x["column_name"] == "FDK_MT")

@@ -15,6 +15,7 @@ from lineage_api.app import create_app  # noqa: E402
 from lineage_api.db import open_readonly  # noqa: E402
 from lineage_api.migrations import add_business_process_columns  # noqa: E402
 from lineage_api.sources import TargetSourceCache, resolve_terminal_sources, sources_for_step  # noqa: E402
+from lineage_api.target_catalog import target_column_pairs  # noqa: E402
 
 
 @pytest.fixture()
@@ -36,7 +37,7 @@ def client(db_file, lineage_db_path):
 
 def _target(client, object_name, column_name):
     objects = client.get("/targets", params={"project": "SP_CLO"}).json()
-    obj = next(o for o in objects if o["object_name"] == object_name and o["source_project"] == "SP_CLO")
+    obj = next(o for o in objects if o["object_name"] == object_name)
     cols = client.get(f"/targets/{obj['object_id']}/columns", params={"project": "SP_CLO"}).json()
     col = next(c for c in cols if c["column_name"] == column_name)
     return {"project": "SP_CLO", "object_id": obj["object_id"], "column_id": col["column_id"]}
@@ -70,11 +71,28 @@ def test_cached_answers_equal_uncached_answers(client, db_file):
     t = _target(client, "CM_PAR_LOAN_TRADES", "FDK_MT")
     roots = client.get("/lineage/upstream", params=t).json()["choices"]
     conn = open_readonly(db_file)
-    fresh = resolve_terminal_sources(conn, t["project"], t["object_id"], t["column_id"])
+    pairs = target_column_pairs(conn, t["project"], t["object_id"], t["column_id"])
     for step in [None] + [c["step_id"] for c in roots]:
         extra = {} if step is None else {"step_id": step}
+        if step is None:
+            expected = {}
+            for bp_id, root_id, column_id in pairs:
+                resolved = resolve_terminal_sources(conn, t["project"], root_id, column_id, bp_id)
+                for source in sources_for_step(resolved):
+                    key = (source["terminal_id"], source["object_id"], source["column_id"],
+                           source["condition"], source["result_expression"])
+                    expected.setdefault(key, source)
+            expected = sorted(expected.values(), key=lambda s: (s["object_name"], s["column_name"], s["terminal_id"]))
+        else:
+            root = conn.execute(
+                "SELECT business_process_id,root_target_object_id,root_target_column_id FROM business_lineage_step WHERE step_id=?",
+                (step,),
+            ).fetchone()
+            pair = next(p for p in pairs if p == tuple(root))
+            resolved = resolve_terminal_sources(conn, t["project"], pair[1], pair[2], pair[0])
+            expected = sources_for_step(resolved, step)
         for _ in range(3):
-            assert _sources(client, t, **extra)["terminal_sources"] == sources_for_step(fresh, step)
+            assert _sources(client, t, **extra)["terminal_sources"] == expected
     conn.close()
 
 

@@ -13,9 +13,9 @@ function show(client: ApiClient, hash: string) {
   return user
 }
 
-async function ids(objectName: string, sourceProject = 'SP_CLO') {
+async function ids(objectName: string, sourceProject?: string) {
   const objects = await realClient().targets('SP_CLO')
-  const object = objects.find((o) => o.object_name === objectName && o.source_project === sourceProject)!
+  const object = objects.find((o) => o.object_name === objectName && (sourceProject === undefined || o.source_project === sourceProject))!
   return object.object_id
 }
 
@@ -34,19 +34,19 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
     show(realClient(), '#/summary')
     const list = await screen.findByRole('list', { name: 'Target tables' })
     const items = within(list).getAllByRole('listitem')
-    expect(items).toHaveLength(7)
+    expect(items).toHaveLength(5)
     expect(textOf(items[0])).toContain('AR_PAR_LOAN_EVENTS')
     expect(textOf(items[0])).toContain('46 columns')
+    expect(textOf(items[0])).not.toContain('AR_CLO_EVENT_PROCESSING')
     expect((screen.getByLabelText('Project') as HTMLSelectElement).value).toBe('SP_CLO')
   })
 
-  it('tells same-named tables apart', async () => {
+  it('lists Aptitude targets once instead of listing intermediate roots as duplicate targets', async () => {
     show(realClient(), '#/summary')
     const list = await screen.findByRole('list', { name: 'Target tables' })
     const events = within(list).getAllByRole('listitem').map(textOf).filter((t) => t.includes('PAR_UNPROCESSED_EVENTS'))
-    expect(events).toHaveLength(2)
-    expect(events.some((t) => t.includes('GP_SHARED'))).toBe(true)
-    expect(events.some((t) => t.includes('SP_CLO'))).toBe(true)
+    expect(events).toHaveLength(1)
+    expect(events[0]).toContain('35 columns')
   })
 
   it('narrows the list as the user types, ignoring case', async () => {
@@ -67,7 +67,7 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
     expect(await screen.findByText('No target tables match.')).toBeTruthy()
 
     await user.clear(box)
-    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Target tables' })).getAllByRole('listitem')).toHaveLength(7))
+    await waitFor(() => expect(within(screen.getByRole('list', { name: 'Target tables' })).getAllByRole('listitem')).toHaveLength(5))
   })
 
   it('opens a table from the list and can return to the list', async () => {
@@ -79,6 +79,7 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
     expect(window.location.hash).toBe(`#/summary/SP_CLO/${objectId}`)
     expect(screen.getByRole('heading', { name: 'AR_PAR_LOAN_EVENTS' })).toBeTruthy()
     expect(document.body.textContent).toContain('46 columns · 46 with lineage')
+    expect(document.body.textContent).not.toContain('AR_CLO_EVENT_PROCESSING')
 
     await user.click(screen.getByRole('link', { name: '← All target tables' }))
     expect(await screen.findByRole('list', { name: 'Target tables' })).toBeTruthy()

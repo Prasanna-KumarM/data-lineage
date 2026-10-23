@@ -92,10 +92,6 @@ export function SummaryPage({ client, route }: Props) {
             <>
               <header className="table-head">
                 <h2>{objectLabel(summary.data.object, [summary.data.object])}</h2>
-                <p className="card-meta">
-                  {summary.data.object.source_project && `${summary.data.object.source_project} · `}
-                  {summary.data.object.business_processes.map((p) => p.business_process_name).join(', ')}
-                </p>
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage
                 </p>

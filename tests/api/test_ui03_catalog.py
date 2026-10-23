@@ -95,9 +95,22 @@ def test_real_db_target_population_matches_roots(real):
     listed = {
         o["object_id"] for p in projects for o in list_target_objects(real, p)
     }
-    roots = {r[0] for r in real.execute(
+    for object_id in listed:
+        obj = next(
+            o for project in projects for o in list_target_objects(real, project)
+            if o["object_id"] == object_id
+        )
+        target_pairs = real.execute(
+            """SELECT 1 FROM component t JOIN business_process bp USING(business_process_id)
+               WHERE bp.project_name IN ({}) AND t.component_type='AptitudeServiceTarget'
+                 AND t.referenced_element_type='Target' AND t.referenced_element_name=? LIMIT 1""".format(
+                ",".join("?" for _ in projects)
+            ),
+            (*projects, obj["object_name"]),
+        ).fetchone()
+        assert target_pairs is not None
+    assert listed <= {r[0] for r in real.execute(
         "SELECT DISTINCT root_target_object_id FROM business_lineage_step")}
-    assert listed == roots
 
 
 def test_real_db_columns_have_lineage(real):

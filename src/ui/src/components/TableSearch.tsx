@@ -45,8 +45,6 @@ export function TableSearch({ client, project, onChoose }: Props) {
                   <span className="table-result-name">{objectLabel(object, results.data)}</span>
                   <span className="card-meta">
                     {object.column_count} {object.column_count === 1 ? 'column' : 'columns'}
-                    {object.business_processes.length > 0 &&
-                      ` · ${object.business_processes.map((p) => p.business_process_name).join(', ')}`}
                   </span>
                 </button>
               </li>

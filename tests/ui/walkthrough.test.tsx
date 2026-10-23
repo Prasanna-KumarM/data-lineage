@@ -88,32 +88,34 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
   })
 
   it('does not allow Next on a terminal choice', async () => {
-    const { user, choices, next } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
-    const leaf = cardsIn(choices).find((c) => c.textContent?.includes('nothing further upstream'))!
+    const { user, choices, next } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
+    const leaf = cardsIn(choices).find((c) => c.textContent?.includes('Unknown MDE Code'))!
     await user.click(leaf)
     expect(pressed(leaf)).toBe(true)
     expect(next().disabled).toBe(true)
     expect(next().title).toBe('Nothing further upstream')
-    expect(cardsIn(choices)).toHaveLength(3)
+    expect(cardsIn(choices)).toHaveLength(5)
   })
 
   it('follows one branch of a multi-choice target', async () => {
     const { user, choices, sources, next } = await openApp(
       realClient(),
-      'PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)',
-      'CONTRACT_ID',
+      'PAR_UNPROCESSED_EVENTS',
+      'PAR_REASON',
     )
-    expect(cardTitles(choices)).toEqual([
-      'AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE',
-      'AR_CLO_ACCOUNTING_EVENTS.AEF_OFFER_ID',
-      'AR_CLO_ACCOUNTING_EVENTS.e_contract_id',
-    ])
-    const branching = cardsIn(choices)[2]
+    expect(cardTitles(choices).sort()).toEqual([
+      'CONSTANT."Unknown Event Code"',
+      '"Grid data not found"."Grid data not found"',
+      '"Unknown MDE Code"."Unknown MDE Code"',
+      'AR_CLO_ACCOUNTING_EVENTS.e_book_cd',
+      'AR_CLO_ACCOUNTING_EVENTS.e_book_cd',
+    ].sort())
+    const branching = cardsIn(choices).find((card) => card.textContent?.includes('1 upstream choice'))!
     await user.click(branching)
     await user.click(next())
-    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of AR_CLO_ACCOUNTING_EVENTS.e_contract_id'))
+    await waitFor(() => expect(hopContext(choices)).toContain('Ultimate sources · upstream of AR_CLO_ACCOUNTING_EVENTS.e_book_cd'))
     await waitFor(() => expect(cardsIn(choices).length).toBe(1))
-    expect(cardTitles(choices)).not.toContain('AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE')
+    expect(cardTitles(choices)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_BOOK_CODE'])
     await waitFor(() => expect(sourceNames(sources).length).toBeGreaterThan(0))
   })
 

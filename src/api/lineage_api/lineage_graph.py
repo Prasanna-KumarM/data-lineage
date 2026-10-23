@@ -9,6 +9,7 @@ from typing import Any
 from lineage_api.graph import StepGraph
 from lineage_api.sources import _terminal_id
 from lineage_api.summary import source_kind
+from lineage_api.target_catalog import target_column_pairs
 
 TARGET_ID = "target"
 
@@ -26,8 +27,19 @@ _STEPS_SQL = """
 """
 
 
-def build_column_graph(conn: sqlite3.Connection, project: str, object_id: str, column_id: str) -> dict[str, Any]:
-    steps = conn.execute(_STEPS_SQL, (project, object_id, column_id)).fetchall()
+def build_column_graph(
+    conn: sqlite3.Connection,
+    project: str,
+    object_id: str,
+    column_id: str,
+    business_process_id: str | None = None,
+) -> dict[str, Any]:
+    sql = _STEPS_SQL
+    params: tuple = (project, object_id, column_id)
+    if business_process_id is not None:
+        sql += " AND s.business_process_id = ?"
+        params += (business_process_id,)
+    steps = conn.execute(sql, params).fetchall()
     graph = StepGraph(steps)
     reachable = sorted(graph.reachable(), key=lambda i: (graph.by_id[i]["lineage_level"], i))
 
@@ -118,6 +130,56 @@ def build_column_graph(conn: sqlite3.Connection, project: str, object_id: str, c
         "object_id": object_id,
         "column_id": column_id,
         "has_lineage": bool(reachable),
+        "nodes": ordered_nodes,
+        "edges": ordered_edges,
+        "totals": {
+            "nodes": len(ordered_nodes),
+            "edges": len(ordered_edges),
+            "sources": len(sources),
+            "hops_max": max((n["hops_max"] for n in ordered_nodes), default=0),
+        },
+    }
+
+
+def build_target_graph(
+    conn: sqlite3.Connection, project: str, object_id: str, column_id: str
+) -> dict[str, Any]:
+    """Combine the target-backed physical roots while retaining their mapping edges."""
+    pairs = target_column_pairs(conn, project, object_id, column_id)
+    if not pairs:
+        return {
+            "project": project, "object_id": object_id, "column_id": column_id,
+            "has_lineage": False, "nodes": [], "edges": [],
+            "totals": {"nodes": 0, "edges": 0, "sources": 0, "hops_max": 0},
+        }
+
+    nodes: dict[str, dict[str, Any]] = {}
+    edges: dict[str, dict[str, Any]] = {}
+    for bp_id, root_id, root_column_id in pairs:
+        graph = build_column_graph(conn, project, root_id, root_column_id, bp_id)
+        for node in graph["nodes"]:
+            current = nodes.get(node["node_id"])
+            if current is None:
+                nodes[node["node_id"]] = dict(node)
+            else:
+                current["hops_min"] = min(current["hops_min"], node["hops_min"])
+                current["hops_max"] = max(current["hops_max"], node["hops_max"])
+        prefix = f"{bp_id}:{root_id}:{root_column_id}:"
+        for edge in graph["edges"]:
+            merged = dict(edge)
+            merged["edge_id"] = prefix + edge["edge_id"]
+            edges[merged["edge_id"]] = merged
+
+    ordered_nodes = sorted(
+        nodes.values(), key=lambda n: (n["hops_min"], n["object_name"], n["column_name"], n["node_id"])
+    )
+    ordered_edges = sorted(edges.values(), key=lambda e: (e["hop"], e["from_node"], e["to_node"], e["edge_id"]))
+    sources = [n for n in ordered_nodes if n["role"] == "source"]
+    return {
+        "project": project,
+        "object_id": object_id,
+        "column_id": column_id,
+        "has_lineage": bool(ordered_edges),
         "nodes": ordered_nodes,
         "edges": ordered_edges,
         "totals": {

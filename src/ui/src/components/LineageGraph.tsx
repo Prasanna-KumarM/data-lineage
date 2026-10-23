@@ -27,7 +27,7 @@ function LineageNodeView({ data }: NodeProps<LineageNode>) {
   const { node } = data
   return (
     <div className={`graph-node graph-node-${node.role}`} data-testid={`graph-node-${node.role}`}>
-      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <Handle type="target" position={Position.Right} isConnectable={false} />
       <div className="graph-node-head">
         <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
         {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
@@ -38,14 +38,14 @@ function LineageNodeView({ data }: NodeProps<LineageNode>) {
       </div>
       {node.condition && <div className="graph-node-note">when {node.condition}</div>}
       {node.result_expression && <div className="graph-node-note">Value {node.result_expression}</div>}
-      <Handle type="source" position={Position.Right} isConnectable={false} />
+      <Handle type="source" position={Position.Left} isConnectable={false} />
     </div>
   )
 }
 
 const nodeTypes = { lineage: LineageNodeView }
 
-function toFlow(graph: ColumnGraph, selectedEdge: string | null): { nodes: LineageNode[]; edges: Edge[] } {
+export function toFlow(graph: ColumnGraph, selectedEdge: string | null): { nodes: LineageNode[]; edges: Edge[] } {
   const placed = new Map(layoutGraph(graph).map((p) => [p.id, p]))
   const byId = new Map(graph.nodes.map((n) => [n.node_id, n]))
   const nodes: LineageNode[] = graph.nodes.map((node) => {
@@ -66,8 +66,8 @@ function toFlow(graph: ColumnGraph, selectedEdge: string | null): { nodes: Linea
     const colour = intoSource ? '#0e7490' : '#64748b'
     return {
       id: e.edge_id,
-      source: e.from_node,
-      target: e.to_node,
+      source: e.to_node,
+      target: e.from_node,
       label: `hop ${e.hop} · ${relationStyle(e.relation_type).label}`,
       labelStyle: { fontSize: 11, fill: '#1f2933' },
       labelBgPadding: [6, 3],
@@ -149,7 +149,7 @@ export function LineageGraph({ graph }: { graph: ColumnGraph }) {
         <span className="legend-swatch legend-target" /> Target
         <span className="legend-swatch legend-intermediate" /> Intermediate
         <span className="legend-swatch legend-source" /> Ultimate source
-        <span className="card-meta">Arrows point from the target towards its ultimate sources. Click a line for its mapping.</span>
+        <span className="card-meta">Arrows point from ultimate sources toward the target. Hops are counted from the target.</span>
       </p>
     </div>
   )

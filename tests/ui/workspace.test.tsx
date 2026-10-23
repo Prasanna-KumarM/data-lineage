@@ -49,7 +49,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
     expect(within(target).getByText('AR_PAR_LOAN_EVENTS')).toBeTruthy()
     expect(within(target).getByText('MDE_CODE')).toBeTruthy()
     expect(within(target).getByText('Project').nextElementSibling?.textContent).toBe('SP_CLO')
-    expect(within(target).getByText('Source project').nextElementSibling?.textContent).toBe('SP_CLO')
+    expect(within(target).getByText('Source project').nextElementSibling?.textContent).toBe('GP_SHARED')
     expect(within(target).getByText('AR_CLO_EVENT_PROCESSING')).toBeTruthy()
   })
 
@@ -65,12 +65,12 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
   })
 
   it('shows terminal choices and an inferred relation distinctly', async () => {
-    const { choices } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
+    const { choices } = await open('PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
     const cards = await findCards(choices)
-    expect(cards).toHaveLength(3)
+    expect(cards).toHaveLength(5)
     const text = cards.map((c) => c.textContent ?? '')
-    expect(text.filter((t) => t.includes('Ultimate source · nothing further upstream'))).toHaveLength(2)
-    expect(text.filter((t) => t.includes('1 upstream choice'))).toHaveLength(1)
+    expect(text.filter((t) => t.includes('Ultimate source · nothing further upstream'))).toHaveLength(3)
+    expect(text.filter((t) => t.includes('1 upstream choice'))).toHaveLength(2)
   })
 
   it('lists every ultimate source of a multi-source target, with relation kinds', async () => {
@@ -110,39 +110,47 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
   })
 
   it('selecting a branch filters the sources but keeps the choices and the target', async () => {
-    const { user, target, choices, sources } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
-    await waitFor(() => expect(sourceNames(sources)).toEqual([
-      'AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE',
-      'AR_CLO_ACCOUNTING_EVENTS.AEF_OFFER_ID',
-    ]))
+    const { user, target, choices, sources } = await open('PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
+    await waitFor(() => expect(sourceNames(sources).sort()).toEqual([
+      '"Grid data not found"."Grid data not found"',
+      '"Unknown MDE Code"."Unknown MDE Code"',
+      'AR_CLO_ACCOUNTING_EVENTS.AEF_BOOK_CODE',
+      'CONSTANT."Unknown Event Code"',
+    ].sort()))
     const targetBefore = target.textContent
     const cards = await findCards(choices)
-    expect(cards).toHaveLength(3)
-    const [eventCode, offerId, contractId] = cards
+    expect(cards).toHaveLength(5)
+    const gridError = cards.find((card) => card.textContent?.includes('Grid data not found'))!
+    const unknownCode = cards.find((card) => card.textContent?.includes('Unknown MDE Code'))!
+    const unknownEvent = cards.find((card) => card.textContent?.includes('Unknown Event Code'))!
+    const [bookPathA, bookPathB] = cards.filter((card) => card.textContent?.includes('1 upstream choice'))
 
-    await user.click(eventCode)
-    expect(eventCode.getAttribute('aria-pressed')).toBe('true')
-    await waitFor(() => expect(sourceNames(sources)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_EVENT_CODE']))
+    await user.click(unknownCode)
+    expect(unknownCode.getAttribute('aria-pressed')).toBe('true')
+    await waitFor(() => expect(sourceNames(sources)).toEqual(['"Unknown MDE Code"."Unknown MDE Code"']))
 
-    await user.click(contractId)
-    expect(contractId.getAttribute('aria-pressed')).toBe('true')
-    expect(eventCode.getAttribute('aria-pressed')).toBe('false')
-    await waitFor(() => expect(sourceNames(sources)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_OFFER_ID']))
-    expect(offerId.getAttribute('aria-pressed')).toBe('false')
+    await user.click(bookPathA)
+    expect(bookPathA.getAttribute('aria-pressed')).toBe('true')
+    expect(unknownCode.getAttribute('aria-pressed')).toBe('false')
+    await waitFor(() => expect(sourceNames(sources)).toEqual(['AR_CLO_ACCOUNTING_EVENTS.AEF_BOOK_CODE']))
+    expect(gridError.getAttribute('aria-pressed')).toBe('false')
+    expect(unknownEvent.getAttribute('aria-pressed')).toBe('false')
+    expect(bookPathB.getAttribute('aria-pressed')).toBe('false')
 
-    // The user stays at this level: the same three cards remain, the target is unchanged.
-    expect(getCards(choices)).toHaveLength(3)
+    // The user stays at this level: the same five cards remain, the target is unchanged.
+    expect(getCards(choices)).toHaveLength(5)
     expect(target.textContent).toBe(targetBefore)
   })
 
   it('clicking the selected card again clears the selection and restores all sources', async () => {
-    const { user, choices, sources } = await open('PAR_UNPROCESSED_EVENTS (SP_CLO · AR_CLO_EVENT_PROCESSING)', 'CONTRACT_ID')
+    const { user, choices, sources } = await open('PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
     const cards = await findCards(choices)
-    await user.click(cards[0])
+    const unknownCode = cards.find((card) => card.textContent?.includes('Unknown MDE Code'))!
+    await user.click(unknownCode)
     await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(1))
-    await user.click(cards[0])
-    expect(cards[0].getAttribute('aria-pressed')).toBe('false')
-    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(2))
+    await user.click(unknownCode)
+    expect(unknownCode.getAttribute('aria-pressed')).toBe('false')
+    await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(4))
   })
 
   it('explains a direct mapping that has no intermediate steps', async () => {

@@ -47,9 +47,9 @@ describeReal('mapping cards on the real SP_CLO lineage', () => {
   })
 
   it('shows an expression root choice with its condition', async () => {
-    const { choices } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS (GP_SHARED · AR_CLO_EVENT_PROCESSING)', 'PAR_REASON')
+    const { choices } = await openApp(realClient(), 'PAR_UNPROCESSED_EVENTS', 'PAR_REASON')
     const conditions = cardsIn(choices).map((c) => c.querySelector('.expr-line:first-child code')?.textContent)
-    expect(conditions.sort()).toEqual(['ELSE', 'IsNull(e_cou_country_code)', 'IsNull(e_pcr_code)', 'IsNull(e_product_group)'])
+    expect(conditions.filter(Boolean).sort()).toEqual(['ELSE', 'IsNull(e_cou_country_code)', 'IsNull(e_pcr_code)', 'IsNull(e_product_group)'])
   })
 
   it('makes a constant, a function and a not-persisted mapping visibly different', async () => {

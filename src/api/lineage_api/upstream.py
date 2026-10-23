@@ -45,17 +45,26 @@ def _to_choice(row: sqlite3.Row) -> dict[str, Any]:
 
 
 def get_root_choices(
-    conn: sqlite3.Connection, project: str, object_id: str, column_id: str
+    conn: sqlite3.Connection,
+    project: str,
+    object_id: str,
+    column_id: str,
+    business_process_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Immediate upstream choices of the selected target column (level-0 steps)."""
+    process_filter = " AND c.business_process_id = ?" if business_process_id is not None else ""
+    params: tuple = (project, object_id, column_id)
+    if business_process_id is not None:
+        params += (business_process_id,)
     rows = conn.execute(
         _CHOICE_SELECT
         + """FROM business_lineage_step c
              JOIN business_process bp ON bp.business_process_id = c.business_process_id
              WHERE c.lineage_level = 0 AND bp.project_name = ?
                AND c.root_target_object_id = ? AND c.root_target_column_id = ?"""
+        + process_filter
         + _ORDER,
-        (project, object_id, column_id),
+        params,
     ).fetchall()
     return [_to_choice(r) for r in rows]
 
