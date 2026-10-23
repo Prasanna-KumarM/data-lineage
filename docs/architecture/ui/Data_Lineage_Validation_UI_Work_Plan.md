@@ -62,7 +62,7 @@ Create a reproducible baseline before UI-specific schema or API changes.
 ### Scope
 - Document the current `business_lineage_step`, `column_relation`, canonical object/column, component, confidence, dependency, and gap fields used by the UI.
 - Capture representative results for the golden projects.
-- Preserve the validated distinct-step behavior, including the known regression where `SP_LIQ / AR_PAR_FEE_EVENTS / CONTRACT_ID` matches the trusted SQL result.
+- Preserve the validated distinct-step behavior, including the known regression where `SP_CLO / AR_PAR_LOAN_EVENTS / MDE_CODE` matches the trusted SQL result.
 
 ### Deliverables
 - Baseline field contract.
