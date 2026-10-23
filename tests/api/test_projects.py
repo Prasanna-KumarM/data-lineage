@@ -143,3 +143,10 @@ def test_a_duplicate_project_name_keeps_the_first_folder(outputs, sp_clo_db):
     entries = ProjectRegistry(outputs).entries()
     assert [e["project_name"] for e in entries].count("SP_CLO") == 1
     assert next(e for e in entries if e["project_name"] == "SP_CLO")["folder"] == "SP_CLO"
+    # The other folder is not hidden: it is listed under its folder name, with the reason it cannot be used.
+    copy = next(e for e in entries if e["project_name"] == "ZZ_COPY")
+    assert copy["ready"] is False
+    assert "SP_CLO" in copy["problem"]
+    client = TestClient(create_app(outputs_dir=str(outputs)))
+    listed = next(p for p in client.get("/projects").json() if p["project_name"] == "ZZ_COPY")
+    assert listed["ready"] is False and "already used" in listed["problem"]
