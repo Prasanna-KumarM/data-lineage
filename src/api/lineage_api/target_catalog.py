@@ -17,6 +17,39 @@ def _has_target_components(conn: sqlite3.Connection) -> bool:
     ).fetchone() is not None
 
 
+def _has_invocations(conn: sqlite3.Connection) -> bool:
+    if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_process_invocation'"
+    ).fetchone() is None:
+        return False
+    return conn.execute("SELECT 1 FROM business_process_invocation LIMIT 1").fetchone() is not None
+
+
+def _calling_processes(
+    conn: sqlite3.Connection, project: str, target_bp_id: str, target_bp_name: str, use_invocations: bool
+) -> list[sqlite3.Row]:
+    if use_invocations:
+        return conn.execute(
+            """SELECT DISTINCT caller.business_process_id,caller.business_process_name
+               FROM business_process_invocation inv
+               JOIN business_process caller ON caller.business_process_id=inv.calling_business_process_id
+               WHERE caller.project_name=? AND inv.resolution_status='RESOLVED'
+                 AND inv.referenced_business_process_id=?
+               ORDER BY caller.business_process_name""",
+            (project, target_bp_id),
+        ).fetchall()
+    return conn.execute(
+        """SELECT DISTINCT caller.business_process_id,caller.business_process_name
+           FROM component block
+           JOIN business_process caller ON caller.business_process_id=block.business_process_id
+           WHERE caller.project_name=? AND block.component_type='AptitudeServiceBlock'
+             AND block.referenced_element_type='BusinessProcess'
+             AND block.referenced_element_name=? AND block.referenced_project_name=?
+           ORDER BY caller.business_process_name""",
+        (project, target_bp_name, project),
+    ).fetchall()
+
+
 def target_definitions(conn: sqlite3.Connection, project: str) -> list[dict[str, Any]]:
     """Group roots by Aptitude target name/project and retain their owning BP/root IDs.
 
@@ -65,18 +98,12 @@ def target_definitions(conn: sqlite3.Connection, project: str) -> list[dict[str,
         (project,),
     ).fetchall()
 
+    use_invocations = _has_invocations(conn)
     grouped: dict[tuple[str, str | None], dict[str, Any]] = {}
     for component in components:
-        calling_processes = conn.execute(
-            """SELECT DISTINCT caller.business_process_id,caller.business_process_name
-               FROM component block
-               JOIN business_process caller ON caller.business_process_id=block.business_process_id
-               WHERE caller.project_name=? AND block.component_type='AptitudeServiceBlock'
-                 AND block.referenced_element_type='BusinessProcess'
-                 AND block.referenced_element_name=? AND block.referenced_project_name=?
-               ORDER BY caller.business_process_name""",
-            (project, component["business_process_name"], project),
-        ).fetchall()
+        calling_processes = _calling_processes(
+            conn, project, component["business_process_id"], component["business_process_name"], use_invocations
+        )
         processes = [(component["business_process_id"], component["business_process_name"])]
         processes.extend((p["business_process_id"], p["business_process_name"]) for p in calling_processes)
         key = (component["object_name"], component["source_project"])
