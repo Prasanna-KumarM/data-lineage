@@ -8,6 +8,7 @@ import threading
 from collections import OrderedDict
 from typing import Any
 
+from lineage_api.db import declared_only
 from lineage_api.graph import StepGraph
 from lineage_api.sources import _terminal_id, db_fingerprint
 
@@ -168,7 +169,7 @@ def summarize_table(conn: sqlite3.Connection, project: str, object_id: str) -> d
         by_column.setdefault(s["root_target_column_id"], []).append(s)
 
     columns = conn.execute(
-        "SELECT column_id, column_name FROM canonical_column WHERE object_id = ? ORDER BY column_name, column_id",
+        f"SELECT column_id, column_name FROM canonical_column WHERE object_id = ?{declared_only(conn, [object_id])} ORDER BY column_name, column_id",
         (object_id,),
     ).fetchall()
 

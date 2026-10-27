@@ -31,6 +31,17 @@ class DatabaseNotConfigured(Exception):
     pass
 
 
+def declared_only(conn: sqlite3.Connection, object_ids: list[str]) -> str:
+    """SQL suffix limiting canonical_column to EDF columns, or '' when none of these objects has any marked."""
+    if not object_ids or not any(r[1] == "is_declared" for r in conn.execute("PRAGMA table_info(canonical_column)")):
+        return ""
+    marks = ",".join("?" for _ in object_ids)
+    marked = conn.execute(
+        f"SELECT 1 FROM canonical_column WHERE is_declared=1 AND object_id IN ({marks}) LIMIT 1", object_ids
+    ).fetchone()
+    return " AND is_declared=1" if marked else ""
+
+
 class DatabaseUnavailable(Exception):
     pass
 

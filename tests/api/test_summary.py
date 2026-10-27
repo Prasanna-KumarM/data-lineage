@@ -225,6 +225,8 @@ def test_columns_without_any_lineage_are_listed_and_marked(sp_clo):
         " VALUES ('COL_orphan', ?, 'AAA_NO_LINEAGE', NULL, 1, 0)",
         (obj["object_id"],),
     )
+    # An EDF-backed database marks all of the object's columns as declared.
+    sp_clo.execute("UPDATE canonical_column SET is_declared=1, is_inferred=0 WHERE object_id=?", (obj["object_id"],))
     summary = summarize_table(sp_clo, "SP_CLO", obj["object_id"])
     assert summary["totals"] == {"columns": 27, "with_lineage": 26}
     orphan = summary["columns"][0]

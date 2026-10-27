@@ -136,3 +136,34 @@ def test_gfrs_target_includes_lineage_from_its_block_callers(sp_liq_db):
     assert adjusted_amount["source_count"] == 7
     assert adjusted_amount["hops_min"] == adjusted_amount["hops_max"] == 1
     conn.close()
+
+
+def test_only_declared_columns_of_a_root_object_are_listed(sp_liq_db, tmp_path):
+    import shutil
+
+    copy = tmp_path / "lineage.db"
+    shutil.copy(sp_liq_db, copy)
+    conn = sqlite3.connect(copy)
+    conn.row_factory = sqlite3.Row
+    target = next(t for t in target_definitions(conn, "SP_LIQ") if t["object_name"] == "PAR_GFRS_LIQ_TRADES")
+    all_names = [c["column_name"] for c in list_target_columns(conn, "SP_LIQ", target["object_id"])]
+    assert len(all_names) == 226 and target["column_count"] == 226
+
+    interim = [n for n in all_names if n.startswith("e_")]
+    conn.execute(
+        "UPDATE canonical_column SET is_declared=1, is_inferred=0 WHERE object_id IN "
+        "(SELECT object_id FROM canonical_object WHERE object_name='PAR_GFRS_LIQ_TRADES') "
+        f"AND column_name NOT IN ({','.join('?' for _ in interim)})",
+        interim,
+    )
+    conn.commit()
+
+    target = next(t for t in target_definitions(conn, "SP_LIQ") if t["object_name"] == "PAR_GFRS_LIQ_TRADES")
+    names = [c["column_name"] for c in list_target_columns(conn, "SP_LIQ", target["object_id"])]
+    assert target["column_count"] == 226 - len(interim)
+    assert names == [n for n in all_names if n not in interim]
+    summary = summarize_target(conn, "SP_LIQ", target["object_id"])
+    assert [c["column_name"] for c in summary["columns"]] == [n for n in all_names if n not in interim]
+
+    other = next(t for t in target_definitions(conn, "SP_LIQ") if t["object_name"] == "CM_PAR_LOAN_TRADES")
+    assert other["column_count"] == 42

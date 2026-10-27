@@ -5,6 +5,8 @@ import sqlite3
 from collections import defaultdict
 from typing import Any
 
+from lineage_api.db import declared_only
+
 
 def _id(prefix: str, *parts: str) -> str:
     payload = json.dumps(parts, separators=(",", ":"), ensure_ascii=True).encode()
@@ -138,7 +140,7 @@ def target_definitions(conn: sqlite3.Connection, project: str) -> list[dict[str,
             continue
         marks = ",".join("?" for _ in root_ids)
         target["column_count"] = conn.execute(
-            f"SELECT COUNT(DISTINCT column_name) FROM canonical_column WHERE object_id IN ({marks})",
+            f"SELECT COUNT(DISTINCT column_name) FROM canonical_column WHERE object_id IN ({marks}){declared_only(conn, root_ids)}",
             root_ids,
         ).fetchone()[0]
         target["business_processes"].sort(key=lambda p: p["business_process_name"])
@@ -169,7 +171,7 @@ def _column_rows(conn: sqlite3.Connection, target: dict[str, Any]) -> list[dict[
     names = [
         row[0]
         for row in conn.execute(
-            f"SELECT DISTINCT column_name FROM canonical_column WHERE object_id IN ({marks})",
+            f"SELECT DISTINCT column_name FROM canonical_column WHERE object_id IN ({marks}){declared_only(conn, root_ids)}",
             root_ids,
         )
     ]
@@ -236,7 +238,7 @@ def summarize_target(conn: sqlite3.Connection, project: str, object_id: str) -> 
     names = [
         r[0]
         for r in conn.execute(
-            f"SELECT DISTINCT column_name FROM canonical_column WHERE object_id IN ({marks}) ORDER BY column_name",
+            f"SELECT DISTINCT column_name FROM canonical_column WHERE object_id IN ({marks}){declared_only(conn, physical_ids)} ORDER BY column_name",
             physical_ids,
         )
     ]
