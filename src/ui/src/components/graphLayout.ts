@@ -20,17 +20,21 @@ export function nodeHeight(node: ColumnGraph['nodes'][number]): number {
   return BASE_HEIGHT + extra * LINE_HEIGHT
 }
 
+export type SizeOf = (node: ColumnGraph['nodes'][number]) => { width: number; height: number }
+
+const defaultSize: SizeOf = (node) => ({ width: NODE_WIDTH, height: nodeHeight(node) })
+
 /** Left-to-right layers: the target on the left, ultimate sources on the right. Positions are top-left corners. */
-export function layoutGraph(graph: ColumnGraph): PlacedNode[] {
+export function layoutGraph(graph: ColumnGraph, sizeOf: SizeOf = defaultSize): PlacedNode[] {
   const g = new dagre.graphlib.Graph()
   g.setGraph({ rankdir: 'LR', nodesep: 28, ranksep: 180, marginx: 16, marginy: 16 })
   g.setDefaultEdgeLabel(() => ({}))
-  for (const node of graph.nodes) g.setNode(node.node_id, { width: NODE_WIDTH, height: nodeHeight(node) })
+  for (const node of graph.nodes) g.setNode(node.node_id, sizeOf(node))
   for (const edge of graph.edges) g.setEdge(edge.from_node, edge.to_node)
   dagre.layout(g)
   return graph.nodes.map((node) => {
     const { x, y } = g.node(node.node_id)
-    const height = nodeHeight(node)
-    return { id: node.node_id, x: x - NODE_WIDTH / 2, y: y - height / 2, width: NODE_WIDTH, height }
+    const { width, height } = sizeOf(node)
+    return { id: node.node_id, x: x - width / 2, y: y - height / 2, width, height }
   })
 }
