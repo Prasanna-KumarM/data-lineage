@@ -52,30 +52,38 @@ function ChipView({ data }: NodeProps<WalkNode>) {
   )
 }
 
-function CurrentView({ data }: NodeProps<WalkNode>) {
-  const { node, via, onDetails } = data
+/** The one block shown at standard size, with everything known about the node. */
+function Details({ node, via, onDetails }: { node: GraphNode; via: GraphEdge | null; onDetails: () => void }) {
   return (
-    <div className={`graph-node graph-node-${node.role} walk-current`} data-testid="walk-node-current">
-      <Handles>
-        <div className="graph-node-head">
-          <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
-          {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
-          {node.role !== 'target' && <span className="graph-node-hops">{hopsText(node.hops_min, node.hops_max)}</span>}
+    <div className="walk-details" data-testid="walk-node-current">
+      <div className="graph-node-head">
+        <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
+        {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
+        {node.role !== 'target' && <span className="graph-node-hops">{hopsText(node.hops_min, node.hops_max)}</span>}
+      </div>
+      <div className="graph-node-name">{label(node)}</div>
+      {node.object_type && <div className="walk-current-line">{node.object_type}</div>}
+      {via && (
+        <div className="walk-current-line">
+          <RelationBadge type={via.relation_type} /> {via.component_name ?? 'No component'}
         </div>
-        <div className="graph-node-name">{label(node)}</div>
-        {node.object_type && <div className="walk-current-line">{node.object_type}</div>}
-        {via && (
-          <div className="walk-current-line">
-            <RelationBadge type={via.relation_type} /> {via.component_name ?? 'No component'}
-          </div>
-        )}
-        {node.condition && <div className="walk-current-line">when {node.condition}</div>}
-        {node.result_expression && <div className="walk-current-line">Value {node.result_expression}</div>}
-        {via && (
-          <button type="button" className="walk-current-details nodrag nopan" onClick={onDetails}>
-            Full details
-          </button>
-        )}
+      )}
+      {node.condition && <div className="walk-current-line">when {node.condition}</div>}
+      {node.result_expression && <div className="walk-current-line">Value {node.result_expression}</div>}
+      {via && (
+        <button type="button" className="walk-current-details nodrag nopan" onClick={onDetails}>
+          Full details
+        </button>
+      )}
+    </div>
+  )
+}
+
+function CurrentView({ data }: NodeProps<WalkNode>) {
+  return (
+    <div className={`graph-node graph-node-${data.node.role} walk-current`}>
+      <Handles>
+        <Details node={data.node} via={data.via} onDetails={data.onDetails} />
       </Handles>
     </div>
   )
@@ -83,11 +91,39 @@ function CurrentView({ data }: NodeProps<WalkNode>) {
 
 const nodeTypes = { chip: ChipView, current: CurrentView }
 
+/** The target or an ultimate source, pinned at one end of the page. Sources stay greyed until the walk reaches them. */
+function EndCard({ node, mode, via, onPick, onDetails }: { node: GraphNode; mode: Mode; via: GraphEdge | null; onPick: () => void; onDetails: () => void }) {
+  const clickable = mode !== 'current' && mode !== 'dim'
+  const className = `walk-end graph-node-${node.role} walk-end-${mode}`
+  const body =
+    mode === 'current' ? (
+      <Details node={node} via={via} onDetails={onDetails} />
+    ) : (
+      <>
+        <span className="graph-node-head">
+          <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
+          {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
+        </span>
+        <span className="walk-end-name">{label(node)}</span>
+      </>
+    )
+  return clickable ? (
+    <button type="button" className={className} data-testid={`walk-end-${mode}`} onClick={onPick}>
+      {body}
+    </button>
+  ) : (
+    <div className={className} data-testid={`walk-end-${mode}`} aria-disabled={mode === 'dim' || undefined}>
+      {body}
+    </div>
+  )
+}
+
 function Camera({ ids }: { ids: string[] }) {
   const { fitView } = useReactFlow()
   const key = ids.join('|')
   useEffect(() => {
-    const timer = setTimeout(() => void fitView({ nodes: key.split('|').map((id) => ({ id })), padding: 0.3, maxZoom: 1.1, duration: 300 }), 0)
+    const nodes = key ? key.split('|').map((id) => ({ id })) : undefined
+    const timer = setTimeout(() => void fitView({ nodes, padding: 0.3, maxZoom: 1.1, duration: 300 }), 0)
     return () => clearTimeout(timer)
   }, [key, fitView])
   return null
@@ -141,13 +177,20 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
     return walkedNodes.has(id) ? 'walked' : 'dim'
   }
 
+  // Target and ultimate sources live outside the canvas, so only the steps between them are laid out.
+  const inner = useMemo(() => {
+    const ids = new Set(graph.nodes.filter((n) => n.role === 'intermediate').map((n) => n.node_id))
+    return { ...graph, nodes: graph.nodes.filter((n) => ids.has(n.node_id)), edges: graph.edges.filter((e) => ids.has(e.from_node) && ids.has(e.to_node)) }
+  }, [graph])
+  const sources = useMemo(() => graph.nodes.filter((n) => n.role === 'source'), [graph])
+
   const flow = useMemo(() => {
     const placed = new Map(
-      layoutGraph(graph, (n) =>
+      layoutGraph(inner, (n) =>
         n.node_id === current.node_id ? { width: 320, height: 200 + (n.condition ? 24 : 0) + (n.result_expression ? 24 : 0) } : CHIP,
       ).map((p) => [p.id, p]),
     )
-    const flowNodes: WalkNode[] = graph.nodes.map((node) => {
+    const flowNodes: WalkNode[] = inner.nodes.map((node) => {
       const p = placed.get(node.node_id)!
       const isCurrent = node.node_id === current.node_id
       return {
@@ -162,7 +205,7 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
         connectable: false,
       }
     })
-    const flowEdges: Edge[] = graph.edges.map((e) => {
+    const flowEdges: Edge[] = inner.edges.map((e) => {
       const walked = walk.path.includes(e.edge_id)
       const candidate = upstream.some((u) => u.edge_id === e.edge_id)
       const chosen = nextEdge?.edge_id === e.edge_id
@@ -186,20 +229,32 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
     })
     return { nodes: flowNodes, edges: flowEdges }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, walk, current.node_id, nextEdge, backNode, via])
+  }, [inner, walk, current.node_id, nextEdge, backNode, via])
 
-  const onNodeClick = (_: unknown, clicked: Node) => {
-    const mode = (clicked.data as WalkData).mode
+  const activate = (id: string) => {
+    const mode = modeOf(id)
     if (mode === 'next' || mode === 'next-chosen') {
-      const edge = upstream.find((e) => e.to_node === clicked.id)
+      const edge = upstream.find((e) => e.to_node === id)
       if (edge) setWalk((w) => ({ ...w, nextId: edge.edge_id }))
     } else if (mode === 'back' || mode === 'back-chosen') {
-      setWalk((w) => ({ ...w, backId: clicked.id }))
+      setWalk((w) => ({ ...w, backId: id }))
     } else if (mode === 'walked') {
-      const index = walk.path.findIndex((id) => walkedEdges.get(id)?.to_node === clicked.id)
+      const index = walk.path.findIndex((edgeId) => walkedEdges.get(edgeId)?.to_node === id)
       setWalk((w) => jumpTo(w, index + 1))
     }
   }
+  const endCard = (node: GraphNode) => (
+    <EndCard
+      key={node.node_id}
+      node={node}
+      mode={modeOf(node.node_id)}
+      via={node.node_id === current.node_id ? via : null}
+      onPick={() => activate(node.node_id)}
+      onDetails={() => via && setDetailStep(via.step_ids[0] ?? null)}
+    />
+  )
+  const innerIds = new Set(inner.nodes.map((n) => n.node_id))
+  const focus = [current.node_id, backNode?.node_id ?? via?.from_node, ...upstream.map((e) => e.to_node)].filter((id): id is string => Boolean(id) && innerIds.has(id as string))
 
   const pathNodes = walk.path.map((id) => nodes.get(walkedEdges.get(id)!.to_node)!)
   const instruction = (() => {
@@ -251,27 +306,36 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
         </div>
       </div>
 
-      <div className="graph-canvas graph-walk-canvas" data-testid="walk-canvas">
-        <ReactFlow
-          nodes={flow.nodes}
-          edges={flow.edges}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
-          minZoom={0.1}
-          maxZoom={1.5}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          proOptions={{ hideAttribution: true }}
-          onNodeClick={onNodeClick}
-        >
-          <Background gap={20} />
-          <Controls showInteractive={false} showFitView={false} />
-          <Camera ids={[current.node_id, ...(backNode ? [backNode.node_id] : via ? [via.from_node] : []), ...upstream.map((e) => e.to_node)]} />
-          <Panel position="top-right">
-            <FitAll />
-          </Panel>
-        </ReactFlow>
+      <div className="graph-walk-stage">
+        <div className="walk-rail walk-rail-target" aria-label="Target">
+          {endCard(view.root)}
+        </div>
+        <div className="graph-canvas graph-walk-canvas" data-testid="walk-canvas">
+          {inner.nodes.length === 0 && <p className="graph-walk-empty">No steps between the target and its ultimate sources.</p>}
+          <ReactFlow
+            nodes={flow.nodes}
+            edges={flow.edges}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
+            minZoom={0.1}
+            maxZoom={1.5}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            proOptions={{ hideAttribution: true }}
+            onNodeClick={(_, clicked) => activate(clicked.id)}
+          >
+            <Background gap={20} />
+            <Controls showInteractive={false} showFitView={false} />
+            <Camera ids={focus} />
+            <Panel position="top-right">
+              <FitAll />
+            </Panel>
+          </ReactFlow>
+        </div>
+        <div className="walk-rail walk-rail-sources" aria-label="Ultimate sources">
+          {sources.map(endCard)}
+        </div>
       </div>
 
       {upstream.length > 1 && (

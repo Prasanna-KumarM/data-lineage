@@ -81,6 +81,9 @@ describeReal('graph walkthrough view', () => {
     const walk = await screen.findByRole('region', { name: 'Graph walkthrough' })
     await within(walk).findAllByTestId('walk-node-current')
     expect(within(walk).getAllByTestId('walk-node-current')).toHaveLength(1)
+    // The target is the standard-size block at the start; every ultimate source is greyed at the far end.
+    expect(within(walk).getAllByTestId('walk-end-current')).toHaveLength(1)
+    expect(within(walk).getAllByTestId('walk-end-dim')).toHaveLength(split!.graph.nodes.filter((n) => n.role === 'source').length)
     const next = within(walk).getByRole('button', { name: /Next/ }) as HTMLButtonElement
     const back = within(walk).getByRole('button', { name: /Back/ }) as HTMLButtonElement
     expect(next.disabled).toBe(true)

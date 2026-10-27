@@ -1322,3 +1322,71 @@ button.dot:focus-visible {
   font-size: 0.75rem;
   cursor: pointer;
 }
+
+/* Target and ultimate sources pinned at the two ends of the walkthrough */
+.graph-walk-stage {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr) 260px;
+  gap: 12px;
+  height: 520px;
+  margin-bottom: 12px;
+}
+
+.graph-walk-stage .graph-walk-canvas {
+  position: relative;
+  height: auto;
+  margin-bottom: 0;
+}
+
+.walk-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+  padding: 8px;
+  overflow-y: auto;
+  background: #f9fafb;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+}
+
+.walk-rail-target { justify-content: center; }
+
+.walk-end {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.8rem;
+  text-align: left;
+  background: #fff;
+  border: 1.5px solid #94a3b8;
+  border-left-width: 5px;
+  border-radius: 8px;
+}
+
+.walk-end.graph-node-target { border-color: #1d4ed8; }
+.walk-end.graph-node-source { border-color: #0e7490; }
+button.walk-end { cursor: pointer; }
+.walk-end-name { display: block; font-weight: 700; overflow-wrap: anywhere; }
+.walk-end-current { box-shadow: 0 4px 14px rgba(15, 23, 42, 0.25); }
+.walk-end-next { border-style: dashed; }
+.walk-end-next-chosen, .walk-end-back-chosen { background: #ecfeff; }
+.walk-end-dim { color: #6b7280; background: #f3f4f6; border-color: #d1d5db; opacity: 0.6; filter: grayscale(1); }
+
+.graph-walk-empty {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  margin: 0;
+  text-align: center;
+  color: #6b7280;
+}
+
+/* The current block grows and the previous one shrinks smoothly */
+.graph-walk-canvas .react-flow__node {
+  transition: transform 0.35s ease, width 0.35s ease, height 0.35s ease;
+}
