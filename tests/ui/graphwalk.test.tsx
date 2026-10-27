@@ -81,9 +81,9 @@ describeReal('graph walkthrough view', () => {
     const walk = await screen.findByRole('region', { name: 'Graph walkthrough' })
     await within(walk).findAllByTestId('walk-node-current')
     expect(within(walk).getAllByTestId('walk-node-current')).toHaveLength(1)
-    // The target is the standard-size block at the start; every ultimate source is greyed at the far end.
-    expect(within(walk).getAllByTestId('walk-end-current')).toHaveLength(1)
-    expect(within(walk).getAllByTestId('walk-end-dim')).toHaveLength(split!.graph.nodes.filter((n) => n.role === 'source').length)
+    // The whole graph is drawn, with the target as the one enlarged block at the start.
+    expect(walk.querySelectorAll('[data-testid^="walk-node-"]')).toHaveLength(split!.graph.nodes.length)
+    expect(within(walk.querySelector('[data-testid="walk-node-current"]')!.closest('.graph-node') as HTMLElement).getByText('Target')).toBeTruthy()
     const next = within(walk).getByRole('button', { name: /Next/ }) as HTMLButtonElement
     const back = within(walk).getByRole('button', { name: /Back/ }) as HTMLButtonElement
     expect(next.disabled).toBe(true)
@@ -94,6 +94,7 @@ describeReal('graph walkthrough view', () => {
     expect(next.disabled).toBe(false)
     await user.click(next)
     expect(within(walk).getByText('Step 2')).toBeTruthy()
+    expect(within(walk).getAllByTestId('walk-node-current')).toHaveLength(1)
     expect(back.disabled).toBe(false)
     await user.click(back)
     expect(within(walk).getByText('Step 1')).toBeTruthy()

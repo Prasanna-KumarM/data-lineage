@@ -19,18 +19,21 @@ import { useAsync } from '../hooks/useAsync'
 import { initialWalk, jumpTo, stepBack, stepNext, viewOf, type WalkState } from '../state/graphWalk'
 import { RelationBadge } from './Badges'
 import { DetailDrawer } from './DetailDrawer'
-import { layoutGraph } from './graphLayout'
+import { layoutGraph, NODE_WIDTH, nodeHeight } from './graphLayout'
 import { ErrorNotice, LoadingNotice } from './Notices'
 import { relationStyle } from './relationStyle'
 import { KindBadge, hopsText } from './SummaryTable'
 
 type Mode = 'walked' | 'current' | 'next' | 'next-chosen' | 'back' | 'back-chosen' | 'dim'
 type WalkData = { node: GraphNode; mode: Mode; via: GraphEdge | null; onDetails: () => void } & Record<string, unknown>
-type WalkNode = Node<WalkData, 'chip' | 'current'>
+type WalkNode = Node<WalkData, 'plain' | 'current'>
 
-const CHIP = { width: 210, height: 40 }
 const ROLE_LABEL = { target: 'Target', intermediate: 'Intermediate', source: 'Ultimate source' } as const
 const label = (n: GraphNode) => `${n.object_name}.${n.column_name}`
+const sizeOf = (focus: string) => (n: GraphNode) =>
+  n.node_id === focus
+    ? { width: 340, height: 190 + (n.condition ? 40 : 0) + (n.result_expression ? 40 : 0) }
+    : { width: NODE_WIDTH, height: nodeHeight(n) }
 
 function Handles({ children }: { children: React.ReactNode }) {
   return (
@@ -42,11 +45,22 @@ function Handles({ children }: { children: React.ReactNode }) {
   )
 }
 
-function ChipView({ data }: NodeProps<WalkNode>) {
+/** A node as drawn on the summary page's graph. */
+function PlainView({ data }: NodeProps<WalkNode>) {
+  const { node } = data
   return (
-    <div className={`walk-chip walk-chip-${data.mode}`} data-testid={`walk-node-${data.mode}`} title={label(data.node)}>
+    <div className={`graph-node graph-node-${node.role} walk-plain walk-plain-${data.mode}`} data-testid={`walk-node-${data.mode}`}>
       <Handles>
-        <span className="walk-chip-name">{label(data.node)}</span>
+        <div className="graph-node-head">
+          <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
+          {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
+          {node.role !== 'target' && <span className="graph-node-hops">{hopsText(node.hops_min, node.hops_max)}</span>}
+        </div>
+        <div className="graph-node-name" title={label(node)}>
+          {label(node)}
+        </div>
+        {node.condition && <div className="graph-node-note">when {node.condition}</div>}
+        {node.result_expression && <div className="graph-node-note">Value {node.result_expression}</div>}
       </Handles>
     </div>
   )
@@ -89,43 +103,15 @@ function CurrentView({ data }: NodeProps<WalkNode>) {
   )
 }
 
-const nodeTypes = { chip: ChipView, current: CurrentView }
+const nodeTypes = { plain: PlainView, current: CurrentView }
 
-/** The target or an ultimate source, pinned at one end of the page. Sources stay greyed until the walk reaches them. */
-function EndCard({ node, mode, via, onPick, onDetails }: { node: GraphNode; mode: Mode; via: GraphEdge | null; onPick: () => void; onDetails: () => void }) {
-  const clickable = mode !== 'current' && mode !== 'dim'
-  const className = `walk-end graph-node-${node.role} walk-end-${mode}`
-  const body =
-    mode === 'current' ? (
-      <Details node={node} via={via} onDetails={onDetails} />
-    ) : (
-      <>
-        <span className="graph-node-head">
-          <span className="graph-node-role">{ROLE_LABEL[node.role]}</span>
-          {node.role === 'source' && node.kind && <KindBadge kind={node.kind} />}
-        </span>
-        <span className="walk-end-name">{label(node)}</span>
-      </>
-    )
-  return clickable ? (
-    <button type="button" className={className} data-testid={`walk-end-${mode}`} onClick={onPick}>
-      {body}
-    </button>
-  ) : (
-    <div className={className} data-testid={`walk-end-${mode}`} aria-disabled={mode === 'dim' || undefined}>
-      {body}
-    </div>
-  )
-}
-
-function Camera({ ids }: { ids: string[] }) {
+/** Keeps the whole graph in view after every move, as on the summary page. */
+function Camera({ trigger }: { trigger: string }) {
   const { fitView } = useReactFlow()
-  const key = ids.join('|')
   useEffect(() => {
-    const nodes = key ? key.split('|').map((id) => ({ id })) : undefined
-    const timer = setTimeout(() => void fitView({ nodes, padding: 0.3, maxZoom: 1.1, duration: 300 }), 0)
+    const timer = setTimeout(() => void fitView({ padding: 0.12, duration: 300 }), 0)
     return () => clearTimeout(timer)
-  }, [key, fitView])
+  }, [trigger, fitView])
   return null
 }
 
@@ -177,25 +163,14 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
     return walkedNodes.has(id) ? 'walked' : 'dim'
   }
 
-  // Target and ultimate sources live outside the canvas, so only the steps between them are laid out.
-  const inner = useMemo(() => {
-    const ids = new Set(graph.nodes.filter((n) => n.role === 'intermediate').map((n) => n.node_id))
-    return { ...graph, nodes: graph.nodes.filter((n) => ids.has(n.node_id)), edges: graph.edges.filter((e) => ids.has(e.from_node) && ids.has(e.to_node)) }
-  }, [graph])
-  const sources = useMemo(() => graph.nodes.filter((n) => n.role === 'source'), [graph])
-
   const flow = useMemo(() => {
-    const placed = new Map(
-      layoutGraph(inner, (n) =>
-        n.node_id === current.node_id ? { width: 320, height: 200 + (n.condition ? 24 : 0) + (n.result_expression ? 24 : 0) } : CHIP,
-      ).map((p) => [p.id, p]),
-    )
-    const flowNodes: WalkNode[] = inner.nodes.map((node) => {
+    const placed = new Map(layoutGraph(graph, sizeOf(current.node_id)).map((p) => [p.id, p]))
+    const flowNodes: WalkNode[] = graph.nodes.map((node) => {
       const p = placed.get(node.node_id)!
       const isCurrent = node.node_id === current.node_id
       return {
         id: node.node_id,
-        type: isCurrent ? 'current' : 'chip',
+        type: isCurrent ? 'current' : 'plain',
         position: { x: p.x, y: p.y },
         width: p.width,
         height: p.height,
@@ -205,31 +180,27 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
         connectable: false,
       }
     })
-    const flowEdges: Edge[] = inner.edges.map((e) => {
+    const flowEdges: Edge[] = graph.edges.map((e) => {
       const walked = walk.path.includes(e.edge_id)
       const candidate = upstream.some((u) => u.edge_id === e.edge_id)
       const chosen = nextEdge?.edge_id === e.edge_id
-      const colour = walked ? '#1d4ed8' : candidate ? '#0e7490' : '#cbd5e1'
+      const colour = walked ? '#1d4ed8' : candidate ? '#0e7490' : '#64748b'
       return {
         id: e.edge_id,
         source: e.to_node,
         target: e.from_node,
-        ...(walked || candidate
-          ? {
-              label: `hop ${e.hop} · ${relationStyle(e.relation_type).label}`,
-              labelStyle: { fontSize: 11, fill: '#1f2933' },
-              labelBgPadding: [6, 3] as [number, number],
-              labelBgBorderRadius: 4,
-              labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95, stroke: '#d1d5db' },
-            }
-          : {}),
+        label: `hop ${e.hop} · ${relationStyle(e.relation_type).label}`,
+        labelStyle: { fontSize: 11, fill: '#1f2933' },
+        labelBgPadding: [6, 3] as [number, number],
+        labelBgBorderRadius: 4,
+        labelBgStyle: { fill: '#ffffff', fillOpacity: 0.95, stroke: '#d1d5db' },
         markerEnd: { type: MarkerType.ArrowClosed, color: colour },
-        style: { stroke: colour, strokeWidth: walked || chosen ? 3 : candidate ? 2 : 1, strokeDasharray: candidate && !chosen ? '6 4' : undefined },
+        style: { stroke: colour, strokeWidth: walked || chosen ? 3 : candidate ? 2 : 1.4, strokeDasharray: candidate && !chosen ? '6 4' : undefined },
       }
     })
     return { nodes: flowNodes, edges: flowEdges }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inner, walk, current.node_id, nextEdge, backNode, via])
+  }, [graph, walk, current.node_id, nextEdge, backNode, via])
 
   const activate = (id: string) => {
     const mode = modeOf(id)
@@ -243,18 +214,6 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
       setWalk((w) => jumpTo(w, index + 1))
     }
   }
-  const endCard = (node: GraphNode) => (
-    <EndCard
-      key={node.node_id}
-      node={node}
-      mode={modeOf(node.node_id)}
-      via={node.node_id === current.node_id ? via : null}
-      onPick={() => activate(node.node_id)}
-      onDetails={() => via && setDetailStep(via.step_ids[0] ?? null)}
-    />
-  )
-  const innerIds = new Set(inner.nodes.map((n) => n.node_id))
-  const focus = [current.node_id, backNode?.node_id ?? via?.from_node, ...upstream.map((e) => e.to_node)].filter((id): id is string => Boolean(id) && innerIds.has(id as string))
 
   const pathNodes = walk.path.map((id) => nodes.get(walkedEdges.get(id)!.to_node)!)
   const instruction = (() => {
@@ -306,36 +265,27 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
         </div>
       </div>
 
-      <div className="graph-walk-stage">
-        <div className="walk-rail walk-rail-target" aria-label="Target">
-          {endCard(view.root)}
-        </div>
-        <div className="graph-canvas graph-walk-canvas" data-testid="walk-canvas">
-          {inner.nodes.length === 0 && <p className="graph-walk-empty">No steps between the target and its ultimate sources.</p>}
-          <ReactFlow
-            nodes={flow.nodes}
-            edges={flow.edges}
-            nodeTypes={nodeTypes}
-            fitView
-            fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
-            minZoom={0.1}
-            maxZoom={1.5}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            proOptions={{ hideAttribution: true }}
-            onNodeClick={(_, clicked) => activate(clicked.id)}
-          >
-            <Background gap={20} />
-            <Controls showInteractive={false} showFitView={false} />
-            <Camera ids={focus} />
-            <Panel position="top-right">
-              <FitAll />
-            </Panel>
-          </ReactFlow>
-        </div>
-        <div className="walk-rail walk-rail-sources" aria-label="Ultimate sources">
-          {sources.map(endCard)}
-        </div>
+      <div className="graph-canvas graph-walk-canvas" data-testid="walk-canvas">
+        <ReactFlow
+          nodes={flow.nodes}
+          edges={flow.edges}
+          nodeTypes={nodeTypes}
+          fitView
+          fitViewOptions={{ padding: 0.3, maxZoom: 1.1 }}
+          minZoom={0.1}
+          maxZoom={1.5}
+          nodesDraggable={false}
+          nodesConnectable={false}
+          proOptions={{ hideAttribution: true }}
+          onNodeClick={(_, clicked) => activate(clicked.id)}
+        >
+          <Background gap={20} />
+          <Controls showInteractive={false} showFitView={false} />
+          <Camera trigger={current.node_id} />
+          <Panel position="top-right">
+            <FitAll focusId={current.node_id} />
+          </Panel>
+        </ReactFlow>
       </div>
 
       {upstream.length > 1 && (
@@ -411,11 +361,16 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
   )
 }
 
-function FitAll() {
+function FitAll({ focusId }: { focusId: string }) {
   const { fitView } = useReactFlow()
   return (
-    <button type="button" className="graph-fit" onClick={() => void fitView({ padding: 0.15, duration: 250 })}>
-      Fit to screen
-    </button>
+    <div className="graph-walk-zoom">
+      <button type="button" className="graph-fit" onClick={() => void fitView({ nodes: [{ id: focusId }], padding: 0.6, maxZoom: 1.2, duration: 250 })}>
+        Zoom to current
+      </button>
+      <button type="button" className="graph-fit" onClick={() => void fitView({ padding: 0.12, duration: 250 })}>
+        Fit to screen
+      </button>
+    </div>
   )
 }
