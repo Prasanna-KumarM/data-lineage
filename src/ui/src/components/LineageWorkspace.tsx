@@ -5,6 +5,7 @@ import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
 import { ChoiceList } from './ChoiceList'
 import { DetailDrawer } from './DetailDrawer'
+import { GraphWalkthrough } from './GraphWalkthrough'
 import { Breadcrumb, HopRail } from './HopRail'
 import { SourceList } from './SourceList'
 import { TargetPanel } from './TargetPanel'
@@ -18,13 +19,28 @@ interface Props {
 }
 
 export function LineageWorkspace({ client, target, object, column, allObjects }: Props) {
+  const [view, setView] = useState<'list' | 'graph'>('list')
   if (!target || !object || !column) {
     return <p className="placeholder">Select a project, target object and target column to start.</p>
   }
   const key = `${target.project}:${target.objectId}:${target.columnId}`
   // Keyed so that choosing another target discards the whole navigation state.
   return (
-    <Session key={key} client={client} target={target} object={object} column={column} allObjects={allObjects} sessionKey={key} />
+    <>
+      <div className="view-toggle" role="group" aria-label="Walkthrough view">
+        <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>
+          List view
+        </button>
+        <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>
+          Graph view
+        </button>
+      </div>
+      {view === 'graph' ? (
+        <GraphWalkthrough key={key} client={client} target={target} />
+      ) : (
+        <Session key={key} client={client} target={target} object={object} column={column} allObjects={allObjects} sessionKey={key} />
+      )}
+    </>
   )
 }
 
