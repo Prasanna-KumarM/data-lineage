@@ -95,6 +95,15 @@ export function SummaryPage({ client, route }: Props) {
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage
                 </p>
+                {client.summaryExportUrl && (
+                  <a
+                    className="download-link"
+                    href={client.summaryExportUrl(project, route.objectId!)}
+                    download
+                  >
+                    Download Excel
+                  </a>
+                )}
               </header>
               <SummaryTable
                 key={`${project}/${route.objectId}`}

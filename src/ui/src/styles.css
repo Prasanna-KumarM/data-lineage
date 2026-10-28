@@ -1301,3 +1301,16 @@ button.dot:focus-visible {
 .graph-walk-canvas .react-flow__node {
   transition: transform 0.35s ease, width 0.35s ease, height 0.35s ease;
 }
+
+.download-link {
+  margin-left: auto;
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1d4ed8;
+  text-decoration: none;
+  border: 1px solid #bfdbfe;
+  border-radius: 6px;
+}
+
+.download-link:hover { background: #eff6ff; }
