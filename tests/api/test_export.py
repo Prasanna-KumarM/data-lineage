@@ -38,30 +38,34 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     object_id = _target_id(sp_clo_client, "CM_PAR_LOAN_TRADES")
     summary = sp_clo_client.get(f"/targets/{object_id}/summary", params={"project": "SP_CLO"}).json()
     wb = _book(sp_clo_client.get(f"/targets/{object_id}/export.xlsx", params={"project": "SP_CLO"}))
-    assert set(wb.sheetnames) == {"CM_PAR_LOAN_TRADES", "How to read"}
+    assert wb.sheetnames == ["Summary", "Steps", "How to read"]
 
-    sheet = wb["CM_PAR_LOAN_TRADES"]
+    sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
-    assert headers[:2] == ["Target table", "Target column"]
-    hop_count = headers.index("Ultimate source") - 2
-    assert hop_count >= 1
-    assert headers[2 + hop_count:] == ["Ultimate source", "Source type", "When (condition)", "Value (result)", "Hops", "Path variants"]
-
+    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "When (condition)", "Value (result)"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
-    expected_rows = sum(max(1, len(c["sources"])) for c in summary["columns"])
-    assert len(rows) == expected_rows
+    assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
     assert sorted({r[1] for r in rows}) == sorted(c["column_name"] for c in summary["columns"])
 
     fdk = [r for r in rows if r[1] == "FDK_MT"]
     assert len(fdk) == len(next(c for c in summary["columns"] if c["column_name"] == "FDK_MT")["sources"]) == 3
-    assert {r[2 + hop_count] for r in fdk} == {
+    assert {r[2] for r in fdk} == {
         "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
         "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
         "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
     }
-    assert all(r[3 + hop_count] == "Column" for r in fdk)
-    assert any("hop 1" not in h for r in fdk for h in r[2 : 2 + hop_count] if h)
+    assert all(r[3] == "Column" for r in fdk)
+
+    steps = [[c.value for c in row] for row in wb["Steps"].iter_rows(min_row=2)]
+    assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "When (condition)", "Value (result)"]
+    assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
+    fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
+    assert [r[3] for r in fdk_steps] == list(range(1, len(fdk_steps) + 1))
+    assert fdk_steps[0][5] == "CM_PAR_LOAN_TRADES.FDK_MT"
+    assert fdk_steps[-1][4] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"
+    for step, nxt in zip(fdk_steps, fdk_steps[1:]):
+        assert step[4] == nxt[5]
 
 
 def test_columns_without_lineage_appear_once_with_a_note(tmp_path):
@@ -81,7 +85,7 @@ def test_columns_without_lineage_appear_once_with_a_note(tmp_path):
     client = TestClient(create_app(str(copy)))
     object_id = _target_id(client, "CM_PAR_LOAN_TRADES")
     wb = _book(client.get(f"/targets/{object_id}/export.xlsx", params={"project": "SP_CLO"}))
-    sheet = wb["CM_PAR_LOAN_TRADES"]
+    sheet = wb["Summary"]
     orphan = [row for row in sheet.iter_rows(min_row=2, values_only=True) if row[1] == "AAA_NO_LINEAGE"]
     assert len(orphan) == 1
     assert "No lineage" in orphan[0]
