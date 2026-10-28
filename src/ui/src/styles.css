@@ -1302,15 +1302,21 @@ button.dot:focus-visible {
   transition: transform 0.35s ease, width 0.35s ease, height 0.35s ease;
 }
 
+.crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .download-link {
-  margin-left: auto;
-  padding: 4px 12px;
-  font-size: 0.8rem;
+  padding: 6px 16px;
+  font-size: 0.85rem;
   font-weight: 600;
-  color: #1d4ed8;
+  color: #fff;
   text-decoration: none;
-  border: 1px solid #bfdbfe;
+  background: #1d4ed8;
   border-radius: 6px;
 }
 
-.download-link:hover { background: #eff6ff; }
+.download-link:hover { background: #1e40af; }

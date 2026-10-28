@@ -85,6 +85,11 @@ export function SummaryPage({ client, route }: Props) {
         <>
           <nav className="crumbs" aria-label="Summary navigation">
             <a href={formatRoute({ name: 'summary', project, objectId: null })}>← All target tables</a>
+            {client.summaryExportUrl && (
+              <a className="download-link" href={client.summaryExportUrl(project, route.objectId!)} download>
+                Download Excel
+              </a>
+            )}
           </nav>
           {summary.status === 'loading' && <LoadingNotice text="Loading table summary…" />}
           {summary.status === 'error' && <ErrorNotice error={summary.error} onRetry={summary.reload} />}
@@ -95,15 +100,6 @@ export function SummaryPage({ client, route }: Props) {
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage
                 </p>
-                {client.summaryExportUrl && (
-                  <a
-                    className="download-link"
-                    href={client.summaryExportUrl(project, route.objectId!)}
-                    download
-                  >
-                    Download Excel
-                  </a>
-                )}
               </header>
               <SummaryTable
                 key={`${project}/${route.objectId}`}
