@@ -5,11 +5,12 @@ from typing import Iterator, Optional
 
 from fastapi import Depends, FastAPI, Header, Query, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from lineage_api import schemas
 from lineage_api.catalog import list_projects, list_target_columns, list_target_objects, search_target_objects
+from lineage_api.export import build_table_workbook
 from lineage_api.db import (
     ENV_DB_PATH,
     DatabaseNotConfigured,
@@ -191,21 +192,41 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         needle = q.strip().casefold()
         return [t for t in _api_targets(conn, project) if not needle or needle in t["object_name"].casefold()]
 
-    @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
-    def table_summary(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
-        _require_object(conn, project, object_id)
+    def _summary_for(conn: sqlite3.Connection, project: str, object_id: str) -> tuple[dict, str]:
+        """(summary, object name) as shown in the UI; shared by the JSON and Excel endpoints."""
         target = find_target(conn, project, object_id) if _has_target_components(conn) else None
         if target is not None:
-            public_target = {key: value for key, value in target.items() if not key.startswith("_")}
             summary = app.state.summary_cache.get_computed(
                 conn,
                 (project, object_id),
                 lambda: summarize_target(conn, project, object_id),
             )
-            return {**summary, "object": public_target}
+            return summary, target["object_name"]
         summary = app.state.summary_cache.get(conn, project, object_id)
         obj = next(o for o in _api_targets(conn, project) if o["object_id"] == object_id)
+        return summary, obj["object_name"]
+
+    @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
+    def table_summary(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        _require_object(conn, project, object_id)
+        summary, _ = _summary_for(conn, project, object_id)
+        target = find_target(conn, project, object_id) if _has_target_components(conn) else None
+        if target is not None:
+            public_target = {key: value for key, value in target.items() if not key.startswith("_")}
+            return {**summary, "object": public_target}
+        obj = next(o for o in _api_targets(conn, project) if o["object_id"] == object_id)
         return {**summary, "object": obj}
+
+    @app.get("/targets/{object_id}/export.xlsx")
+    def table_summary_export(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        _require_object(conn, project, object_id)
+        summary, object_name = _summary_for(conn, project, object_id)
+        content = build_table_workbook(conn, project, object_name, summary)
+        return Response(
+            content=content,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{project}_{object_name}_lineage.xlsx"'},
+        )
 
     @app.get("/targets/{object_id}/columns", response_model=list[schemas.TargetColumnOut])
     def target_columns(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):

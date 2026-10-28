@@ -29,6 +29,8 @@ export interface ApiClient {
   columns(project: string, objectId: string, signal?: AbortSignal): Promise<TargetColumn[]>
   searchTargets(project: string, query: string, signal?: AbortSignal): Promise<TargetObject[]>
   tableSummary(project: string, objectId: string, signal?: AbortSignal): Promise<TableSummary>
+  /** Download URL for the table summary as Excel. */
+  summaryExportUrl?(project: string, objectId: string): string
   columnGraph(target: TargetRef, signal?: AbortSignal): Promise<ColumnGraph>
   rootChoices(target: TargetRef, signal?: AbortSignal): Promise<UpstreamResponse>
   upstream(stepId: string, signal?: AbortSignal): Promise<UpstreamResponse>
@@ -89,6 +91,8 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl, project }:
     searchTargets: (project, q, signal) => get('/targets/search', { project, q }, signal),
     tableSummary: (project, objectId, signal) =>
       get(`/targets/${encodeURIComponent(objectId)}/summary`, { project }, signal),
+    summaryExportUrl: (project, objectId) =>
+      `${baseUrl}/targets/${encodeURIComponent(objectId)}/export.xlsx?project=${encodeURIComponent(project)}`,
     forProject: (name) => createApiClient({ sessionId, baseUrl, fetchImpl, project: name }),
     columnGraph: (target, signal) => get('/lineage/graph', targetParams(target), signal),
     rootChoices: (target, signal) => get('/lineage/upstream', targetParams(target), signal),

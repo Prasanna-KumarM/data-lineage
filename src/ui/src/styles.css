@@ -1301,3 +1301,22 @@ button.dot:focus-visible {
 .graph-walk-canvas .react-flow__node {
   transition: transform 0.35s ease, width 0.35s ease, height 0.35s ease;
 }
+
+.crumbs {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.crumbs a.download-link {
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #fff;
+  text-decoration: none;
+  background: #1d4ed8;
+  border-radius: 6px;
+}
+
+.crumbs a.download-link:hover { background: #1e40af; }
