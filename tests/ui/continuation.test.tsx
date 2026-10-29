@@ -12,7 +12,7 @@ async function openWithTrack() {
   const cloObject = (await real.targets('SP_CLO')).find((o) => o.object_name === 'CM_PAR_LOAN_TRADES')!
   const cloColumn = (await real.columns('SP_CLO', cloObject.object_id)).find((c) => c.column_name === 'FDK_MT')!
   const continuations: ApiClient['continuations'] = async (project, obj, col) =>
-    obj === 'CM_CLO_OFFER' && col === 'e_fdk_mt'
+    obj === 'CM_CLO_OFFER' && (col === 'e_fdk_mt' || col === 'OFR_HTCS_BOOK_CODE')
       ? [{ project: 'SP_CLO', object_id: cloObject.object_id, column_id: cloColumn.column_id }]
       : []
   const client: ApiClient = {
@@ -36,6 +36,8 @@ describeReal('continuing the walkthrough in another project', () => {
   it('offers Track on a card, loads that frame, and Back returns', async () => {
     const { user } = await openWithTrack()
     const workspace = await screen.findByRole('region', { name: 'Lineage session' })
+    // The application badge always shows which project is on screen.
+    expect(workspace.querySelector('.app-badge')?.textContent).toBe('SP_CLO')
     const choices = within(workspace).getByRole('region', { name: 'Upstream choices' })
     await within(choices).findByRole('list', { name: 'Upstream mappings' })
     // e_fdk_mt reaches the target through two mappings, so there are two cards.
@@ -55,6 +57,18 @@ describeReal('continuing the walkthrough in another project', () => {
     await waitFor(() => expect(screen.queryByRole('note')).toBeNull())
     const workspaceBack = screen.getByRole('region', { name: 'Lineage session' })
     await within(workspaceBack).findByRole('list', { name: 'Upstream mappings' })
+  })
+
+  it('offers a prominent Continue button next to the ultimate source', async () => {
+    const { user } = await openWithTrack()
+    const workspace = await screen.findByRole('region', { name: 'Lineage session' })
+    const sources = within(workspace).getByRole('region', { name: 'Ultimate sources' })
+    const cont = await within(sources).findByRole('button', { name: 'Continue in SP_CLO →' })
+    await user.click(cont)
+    expect((await screen.findByRole('note')).textContent).toContain('Tracking CM_PAR_LOAN_TRADES.FDK_MT in SP_CLO')
+    const session2 = screen.getByRole('region', { name: 'Lineage session' })
+    await within(session2).findByRole('list', { name: 'Upstream mappings' })
+    expect(session2.querySelector('.app-badge')?.textContent).toBe('SP_CLO')
   })
 
   it('graph view: Track on the focused node and Back returns to the previous graph', async () => {

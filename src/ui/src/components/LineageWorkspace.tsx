@@ -219,6 +219,24 @@ function Session({
     `${sessionKey}:cont:${parentKey}:${list.status === 'success' ? 'ready' : 'wait'}`,
   )
   const continuations = continuationLookup.status === 'success' ? continuationLookup.data : undefined
+
+  // Continuations for the ultimate sources panel.
+  const sourceList = sources.status === 'success' ? sources.data : []
+  const sourceContinuationLookup = useAsync(
+    sourceList.length
+      ? async (signal) => {
+          const entries = await Promise.all(
+            sourceList.map(
+              async (s) =>
+                [`${s.object_name}.${s.column_name}`, await client.continuations(target.project, s.object_name, s.column_name, signal)] as const,
+            ),
+          )
+          return new Map(entries)
+        }
+      : null,
+    `${sessionKey}:srccont:${activeId ?? 'all'}:${sources.status === 'success' ? 'ready' : 'wait'}`,
+  )
+  const sourceContinuations = sourceContinuationLookup.status === 'success' ? sourceContinuationLookup.data : undefined
   const endpointOf = (c: { source_object_name: string; source_column_name: string }) => `${c.source_object_name}.${c.source_column_name}`
   const targetLabel = `${object.object_name}.${column.column_name}`
   const endpoint = parent ? endpointOf(parent) : targetLabel
@@ -276,6 +294,7 @@ function Session({
         <div className="walk-bar">
           <div className="panel-head">
             <h2 className="panel-title">Where does this come from?</h2>
+            <span className="app-badge">{target.project}</span>
             <span className="hop-badge">{stepText}</span>
           </div>
           <p className="walk-instruction" aria-live="polite">
@@ -341,7 +360,7 @@ function Session({
         <h2 className="panel-title">Ultimate sources</h2>
         {sources.status === 'loading' && <Loading text="Loading sources…" />}
         {sources.status === 'error' && list.status !== 'error' && <Failure error={sources.error} onRetry={sources.reload} />}
-        {sources.status === 'success' && <SourceList sources={sources.data} />}
+        {sources.status === 'success' && <SourceList sources={sources.data} continuations={sourceContinuations} onTrack={onTrack} />}
       </section>
 
       {detailStepId && (

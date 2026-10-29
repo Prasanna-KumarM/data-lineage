@@ -273,6 +273,7 @@ function Walk({ graph, client, target, onTrack, onLeave, returnTo }: WalkProps &
       <div className="walk-bar graph-walk-bar">
         <div className="panel-head">
           <h2 className="panel-title">Where does this come from?</h2>
+          <span className="app-badge">{target.project}</span>
           <span className="hop-badge">Step {walk.path.length + 1}</span>
         </div>
         <p className="walk-instruction" aria-live="polite">
