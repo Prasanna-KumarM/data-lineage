@@ -66,6 +66,13 @@ export interface TerminalSource {
   leaf_relation_types: string[]
 }
 
+export interface Continuation {
+  /** Project whose database tracks this endpoint as a target column. */
+  project: string
+  object_id: string
+  column_id: string
+}
+
 export interface TargetRef {
   project: string
   objectId: string

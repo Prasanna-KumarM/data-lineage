@@ -84,6 +84,13 @@ class UltimateSourcesOut(BaseModel):
     terminal_sources: list[TerminalSourceOut]
 
 
+class ContinuationOut(BaseModel):
+    """A project where an ultimate source continues as a target column."""
+    project: str
+    object_id: str
+    column_id: str
+
+
 class RemainingDepthOut(BaseModel):
     step_id: str
     is_terminal: bool

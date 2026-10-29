@@ -14,7 +14,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { bindProject, type ApiClient } from '../api/client'
-import type { ColumnGraph, GraphEdge, GraphNode, TargetRef } from '../api/types'
+import type { ColumnGraph, Continuation, GraphEdge, GraphNode, TargetRef } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { initialWalk, jumpTo, stepBack, stepNext, viewOf, type WalkState } from '../state/graphWalk'
 import { RelationBadge } from './Badges'
@@ -25,7 +25,14 @@ import { relationStyle } from './relationStyle'
 import { KindBadge, hopsText } from './SummaryTable'
 
 type Mode = 'walked' | 'current' | 'next' | 'next-chosen' | 'back' | 'back-chosen' | 'dim'
-type WalkData = { node: GraphNode; mode: Mode; via: GraphEdge | null; onDetails: () => void } & Record<string, unknown>
+type WalkData = {
+  node: GraphNode
+  mode: Mode
+  via: GraphEdge | null
+  onDetails: () => void
+  tracks: Continuation[]
+  onTrack: ((cont: Continuation, fromLabel: string) => void) | undefined
+} & Record<string, unknown>
 type WalkNode = Node<WalkData, 'plain' | 'current'>
 
 const ROLE_LABEL = { target: 'Target', intermediate: 'Intermediate', source: 'Ultimate source' } as const
@@ -67,7 +74,7 @@ function PlainView({ data }: NodeProps<WalkNode>) {
 }
 
 /** The one block shown at standard size, with everything known about the node. */
-function Details({ node, via, onDetails }: { node: GraphNode; via: GraphEdge | null; onDetails: () => void }) {
+function Details({ node, via, onDetails, tracks, onTrack }: { node: GraphNode; via: GraphEdge | null; onDetails: () => void; tracks: Continuation[]; onTrack: ((cont: Continuation, fromLabel: string) => void) | undefined }) {
   return (
     <div className="walk-details" data-testid="walk-node-current">
       <div className="graph-node-head">
@@ -89,6 +96,16 @@ function Details({ node, via, onDetails }: { node: GraphNode; via: GraphEdge | n
           Full details
         </button>
       )}
+      {tracks.map((cont) => (
+        <button
+          key={cont.project}
+          type="button"
+          className="card-track nodrag nopan"
+          onClick={() => onTrack?.(cont, label(node))}
+        >
+          Track in {cont.project} →
+        </button>
+      ))}
     </div>
   )
 }
@@ -97,7 +114,7 @@ function CurrentView({ data }: NodeProps<WalkNode>) {
   return (
     <div className={`graph-node graph-node-${data.node.role} walk-current`}>
       <Handles>
-        <Details node={data.node} via={data.via} onDetails={data.onDetails} />
+        <Details node={data.node} via={data.via} onDetails={data.onDetails} tracks={data.tracks} onTrack={data.onTrack} />
       </Handles>
     </div>
   )
@@ -115,15 +132,23 @@ function Camera({ trigger }: { trigger: string }) {
   return null
 }
 
-export function GraphWalkthrough({ client, target }: { client: ApiClient; target: TargetRef }) {
+interface WalkProps {
+  client: ApiClient
+  target: TargetRef
+  onTrack?: (cont: Continuation, fromLabel: string) => void
+  onLeave?: () => void
+  returnTo?: string
+}
+
+export function GraphWalkthrough({ client, target, onTrack, onLeave, returnTo }: WalkProps) {
   const graph = useAsync((signal) => client.columnGraph(target, signal), `walkgraph:${target.project}:${target.objectId}:${target.columnId}`)
   if (graph.status === 'loading' || graph.status === 'idle') return <LoadingNotice text="Loading lineage graph…" />
   if (graph.status === 'error') return <ErrorNotice error={graph.error} onRetry={graph.reload} />
   if (!graph.data.has_lineage) return <p className="status">No lineage found for this column.</p>
-  return <Walk graph={graph.data} client={client} target={target} />
+  return <Walk graph={graph.data} client={client} target={target} onTrack={onTrack} onLeave={onLeave} returnTo={returnTo} />
 }
 
-function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient; target: TargetRef }) {
+function Walk({ graph, client, target, onTrack, onLeave, returnTo }: WalkProps & { graph: ColumnGraph }) {
   const [walk, setWalk] = useState<WalkState>(initialWalk)
   const [detailStep, setDetailStep] = useState<string | null>(null)
   const [developer, setDeveloper] = useState(false)
@@ -138,8 +163,21 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
   )
 
   const goNext = useCallback(() => setWalk((w) => stepNext(w, viewOf(graph, w))), [graph])
-  const goBack = useCallback(() => setWalk((w) => stepBack(graph, w, viewOf(graph, w))), [graph])
+  const goBack = useCallback(() => {
+    if (walk.path.length === 0) {
+      onLeave?.()
+      return
+    }
+    setWalk((w) => stepBack(graph, w, viewOf(graph, w)))
+  }, [walk.path.length, graph, onLeave])
   const mustPickBack = downstream.length > 1 && via !== null
+
+  // Where the current node continues in other projects.
+  const trackLookup = useAsync(
+    (signal: AbortSignal) => client.continuations(target.project, current.object_name, current.column_name, signal),
+    `cont:${target.project}:${current.node_id}`,
+  )
+  const tracks = trackLookup.status === 'success' ? trackLookup.data : []
 
   useEffect(() => setDetailStep(null), [walk.path])
   useEffect(() => {
@@ -175,7 +213,14 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
         width: p.width,
         height: p.height,
         zIndex: isCurrent ? 10 : 0,
-        data: { node, mode: modeOf(node.node_id), via: isCurrent ? via : null, onDetails: () => via && setDetailStep(via.step_ids[0] ?? null) },
+        data: {
+          node,
+          mode: modeOf(node.node_id),
+          via: isCurrent ? via : null,
+          onDetails: () => via && setDetailStep(via.step_ids[0] ?? null),
+          tracks: isCurrent ? tracks : [],
+          onTrack,
+        },
         draggable: false,
         connectable: false,
       }
@@ -200,7 +245,7 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
     })
     return { nodes: flowNodes, edges: flowEdges }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graph, walk, current.node_id, nextEdge, backNode, via])
+  }, [graph, walk, current.node_id, nextEdge, backNode, via, tracks])
 
   const activate = (id: string) => {
     const mode = modeOf(id)
@@ -234,11 +279,11 @@ function Walk({ graph, client, target }: { graph: ColumnGraph; client: ApiClient
           {instruction} {backInstruction}
         </p>
         <div className="walk-controls">
-          <button type="button" className="walk-btn" onClick={goBack} disabled={!backNode}>
+          <button type="button" className="walk-btn" onClick={goBack} disabled={!backNode && !onLeave}>
             <span className="walk-btn-main">
               <span aria-hidden="true">‹</span> Back
             </span>
-            <span className="walk-btn-sub">{backNode ? `to ${label(backNode)}` : via ? 'Pick where to go back to' : 'Start of path'}</span>
+            <span className="walk-btn-sub">{backNode ? `to ${label(backNode)}` : via ? 'Pick where to go back to' : onLeave ? `to ${returnTo}` : 'Start of path'}</span>
           </button>
           <ol className="graph-walk-path" aria-label="Your path">
             <li>
