@@ -13,7 +13,7 @@ interface Props {
 export function TargetSelectors({ catalog, selection, dispatch }: Props) {
   const { projects, targets, columns } = catalog
 
-  const projectOptions = projects.status === 'success' ? projects.data.map((p) =>
+  const projectOptions = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false).map((p) =>
         p.ready === false
           ? { value: p.project_name, label: `${p.project_name} (not ready)`, disabled: true, title: p.problem }
           : { value: p.project_name, label: p.project_name },
@@ -33,8 +33,9 @@ export function TargetSelectors({ catalog, selection, dispatch }: Props) {
 
   // A single project needs no choice.
   useEffect(() => {
-    if (projects.status === 'success' && projects.data.length === 1 && projects.data[0].ready !== false && selection.project === null) {
-      dispatch({ type: 'project', value: projects.data[0].project_name })
+    const startable = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false) : []
+    if (startable.length === 1 && startable[0].ready !== false && selection.project === null) {
+      dispatch({ type: 'project', value: startable[0].project_name })
     }
   }, [projects, selection.project, dispatch])
 

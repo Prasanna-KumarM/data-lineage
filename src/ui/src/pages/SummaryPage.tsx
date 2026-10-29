@@ -24,7 +24,7 @@ export function SummaryPage({ client, route }: Props) {
   const [graphColumn, setGraphColumn] = useState<{ id: string; name: string } | null>(null)
   const closeGraph = useCallback(() => setGraphColumn(null), [])
 
-  const entries = projects.status === 'success' ? projects.data : []
+  const entries = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false) : []
   const names = entries.map((p) => p.project_name)
   const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
   const project = route.project ?? chosenProject ?? onlyUsable

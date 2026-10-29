@@ -10,6 +10,8 @@ class ProjectOut(BaseModel):
     # Only sent when a project's database exists but cannot be used yet.
     ready: Optional[bool] = None
     problem: Optional[str] = None
+    # Only sent (false) for projects reachable only through continuation, not as a start point.
+    startable: Optional[bool] = None
 
 
 class BusinessProcessOut(BaseModel):

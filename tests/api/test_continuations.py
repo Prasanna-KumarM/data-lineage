@@ -47,3 +47,22 @@ def test_continuation_never_points_back_to_the_same_project(outputs_client):
         params={"project": "SP_CLO", "object_name": "CM_PAR_LOAN_TRADES", "column_name": "FDK_MT"},
     )
     assert all(h["project"] != "SP_CLO" for h in r.json())
+
+
+def test_continuation_only_projects_are_not_startable(tmp_path):
+    import shutil
+
+    src = ROOT / "outputs" / "SP_CLO" / "lineage.db"
+    for folder, marker in (("PAR_APP", False), ("FPL", True)):
+        d = tmp_path / folder
+        d.mkdir()
+        shutil.copy(src, d / "lineage.db")
+        if marker:
+            (d / "continuation_only").touch()
+    client = TestClient(create_app(outputs_dir=str(tmp_path)))
+    # Both copies report the same internal project name, so the second folder is unusable; assert by folder.
+    projects = {p["folder"]: p for p in client.get("/projects").json()}
+    assert "startable" not in projects["PAR_APP"]
+    assert projects["FPL"]["startable"] is False
+    # It still answers lineage calls.
+    assert client.get("/targets", params={"project": "SP_CLO"}).status_code == 200

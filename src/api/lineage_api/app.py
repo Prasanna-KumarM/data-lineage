@@ -170,7 +170,8 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         if registry is not None:
             return [
                 {"project_name": e["project_name"], "folder": e["folder"],
-                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]})}
+                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]}),
+                 **({} if e.get("startable", True) else {"startable": False})}
                 for e in registry.entries()
             ]
         conn = open_readonly(_db_path(request))

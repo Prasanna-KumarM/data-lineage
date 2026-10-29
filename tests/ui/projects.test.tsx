@@ -13,7 +13,7 @@ function show(client: ApiClient, hash: string) {
   return user
 }
 
-const scripted = (projects: { project_name: string; ready?: boolean; problem?: string }[]): ApiClient => ({
+const scripted = (projects: { project_name: string; ready?: boolean; problem?: string; startable?: boolean }[]): ApiClient => ({
   projects: async () => projects,
   targets: async () => [],
   columns: async () => [],
@@ -59,6 +59,22 @@ describe('choosing a project on the summary page', () => {
     show(scripted([projects[0]]), '#/summary')
     expect((await screen.findByText(/^GP_BROKEN: The database needs to be migrated/)).textContent).toContain('--migrate')
     expect(screen.queryByLabelText('Search target tables')).toBeNull()
+  })
+
+  it('hides continuation-only projects on both pages', async () => {
+    const withContinuation = [...projects, { project_name: 'FPL', startable: false }]
+    show(scripted(withContinuation), '#/summary')
+    let select = (await screen.findByLabelText('Project')) as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual([
+      'Select a project',
+      'GP_BROKEN (not ready)',
+      'SP_CLO',
+      'SP_LIQ',
+    ])
+    show(scripted(withContinuation), '#/lineage')
+    select = (await screen.findByLabelText('Project')) as HTMLSelectElement
+    await within(select).findByRole('option', { name: 'SP_CLO' })
+    expect(screen.queryByRole('option', { name: 'FPL' })).toBeNull()
   })
 
   it('offers the same projects, with the unusable one disabled, in the walkthrough', async () => {

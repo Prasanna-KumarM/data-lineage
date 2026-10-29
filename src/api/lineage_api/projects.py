@@ -49,7 +49,8 @@ class ProjectRegistry:
         if not names:
             return [{"project_name": folder, "folder": folder, "path": path, "ready": False,
                      "problem": "The database has no lineage."}]
-        return [{"project_name": n, "folder": folder, "path": path, "ready": True, "problem": None} for n in names]
+        return [{"project_name": n, "folder": folder, "path": path, "ready": True, "problem": None,
+                 "startable": not (path.parent / "continuation_only").exists()} for n in names]
 
     def entries(self) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []

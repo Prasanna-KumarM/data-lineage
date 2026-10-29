@@ -13,7 +13,7 @@ export function TargetPanel({ project, object, allObjects, column }: Props) {
   const processes = object.business_processes.map((p) => p.business_process_name).filter(Boolean)
   return (
     <section className="panel target-panel" aria-label="Target">
-      <h2 className="panel-title">Target</h2>
+      <h2 className="panel-title">Target · {project}</h2>
       <p className="target-object">{objectLabel(object, allObjects)}</p>
       <p className="target-column">{column.column_name}</p>
       <dl className="facts">

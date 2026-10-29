@@ -4,6 +4,8 @@ export interface Project {
   /** Only present (false) when the project's database exists but cannot be used yet. */
   ready?: boolean
   problem?: string
+  /** Only present (false) when the project is reachable only through continuation. */
+  startable?: boolean
 }
 
 export interface BusinessProcess {

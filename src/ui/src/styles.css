@@ -1348,8 +1348,8 @@ button.dot:focus-visible {
 
 /* Which application the walkthrough is in */
 .app-badge {
-  padding: 2px 10px;
-  font-size: 0.75rem;
+  padding: 4px 14px;
+  font-size: 1rem;
   font-weight: 700;
   color: #fff;
   background: #7c3aed;
