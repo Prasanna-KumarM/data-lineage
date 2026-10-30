@@ -63,6 +63,7 @@ class ChoiceOut(BaseModel):
     has_more_upstream: bool
     upstream_choice_count: int
     contributor_count: int = 1
+    contributor_components: list[str] = []
 
 
 class UpstreamOut(BaseModel):
