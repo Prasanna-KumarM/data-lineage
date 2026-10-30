@@ -71,3 +71,92 @@ af17sq@APM3LH222V992TX p00750-gpcpar-par-db-apt % tree . -d
             └── Triggers
 
 70 directories
+
+
+Insert into PAR_PORTAL_LOADER_INFO (PAR_SOURCE,PAR_PROCESSING_UNIT,PAR_TABLE,PORTAL_DELIVERY_SET,PORTAL_VIEW,PORTAL_TABLE,LOAD_IND,DIRECT_LOAD_IND) values ('CLO',1,'AR_CLO_ACCOUNTING_EVENTS','CLO_AMS_EOD','FPL_V_AR_CLO_AMS_ACCOUNTING_EVENTS',null,'Y',null);
+
+CREATE OR REPLACE FORCE VIEW PAR_OWNER.FPL_V_AR_CLO_AMS_ACCOUNTING_EVENTS
+(
+    PAR_SOURCE,
+    PAR_STATUS,
+    PAR_TIMESTAMP,
+    AEF_EVENT_CODE,
+    AEF_EVENT_DATE,
+    AEF_OFFER_ID,
+    AEF_FACILITY_ID,
+    AEF_BORROWER_ID,
+    AEF_BOOK_CODE,
+    AEF_CCY_1,
+    AEF_AMOUNT_1,
+    AEF_CCY_2,
+    AEF_AMOUNT_2,
+    AEF_CCY_3,
+    AEF_AMOUNT_3,
+    AEF_CCY_4,
+    AEF_AMOUNT_4,
+    AEF_CCY_5,
+    AEF_AMOUNT_5,
+    AEF_CCY_6,
+    AEF_AMOUNT_6,
+    AEF_CCY_7,
+    AEF_AMOUNT_7,
+    AEF_CCY_8,
+    AEF_AMOUNT_8,
+    AEF_CCY_9,
+    AEF_AMOUNT_9,
+    AEF_CCY_10,
+    AEF_AMOUNT_10
+)
+BEQUEATH DEFINER
+AS
+    SELECT 'CLO'       AS PAR_SOURCE,
+           0           AS PAR_STATUS,
+           SYSDATE     AS PAR_TIMESTAMP,
+           AEF_EVENT_CODE,
+           AEF_EVENT_DATE,
+           AEF_OFFER_ID,
+           AEF_FACILITY_ID,
+           AEF_BORROWER_ID,
+           AEF_BOOK_CODE,
+           AEF_CCY_1,
+           AEF_AMOUNT_1,
+           AEF_CCY_2,
+           AEF_AMOUNT_2,
+           AEF_CCY_3,
+           AEF_AMOUNT_3,
+           AEF_CCY_4,
+           AEF_AMOUNT_4,
+           AEF_CCY_5,
+           AEF_AMOUNT_5,
+           AEF_CCY_6,
+           AEF_AMOUNT_6,
+           AEF_CCY_7,
+           AEF_AMOUNT_7,
+           AEF_CCY_8,
+           AEF_AMOUNT_8,
+           AEF_CCY_9,
+           AEF_AMOUNT_9,
+           AEF_CCY_10,
+           AEF_AMOUNT_10
+      FROM CLO_AMS_ACCOUNTING_EVENTS_1@fpl_par
+/
+
+               l_statement :=
+                       'insert '
+                    || CASE r_load.direct_load_ind
+                           WHEN 'Y' THEN '/*+ APPEND NOLOGGING */ '
+                           ELSE NULL
+                       END
+                    || 'into '
+                    || r_load.par_table
+                    || ' ( PAR_ID, PAR_PROCESSING_UNIT, PAR_PROCESS_DATE, '
+                    || r_columns.column_list
+                    || ' ) '
+                    || 'select PAR_SEQ.NEXTVAL, '
+                    || TO_CHAR (p_processing_unit)
+                    || ', to_date('''
+                    || TO_CHAR (l_process_date, 'yyyymmdd')
+                    || ''',''yyyymmdd''), '
+                    || r_columns.column_list
+                    || ' from '
+                    || r_load.portal_view;
