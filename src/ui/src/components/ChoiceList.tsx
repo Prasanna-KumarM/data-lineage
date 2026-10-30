@@ -69,7 +69,10 @@ export function ChoiceList({ choices, selectedStepId, detailStepId, atRoot, cont
                     )}
                   </span>
                 )}
-                <span className="card-meta">{choice.component_name ?? 'No component'}</span>
+                <span className="card-meta">
+                  {choice.component_name ?? 'No component'}
+                  {(choice.contributor_count ?? 1) > 1 && ` · ${choice.contributor_count} mappings`}
+                </span>
                 <span className="card-meta">{upstreamText(choice)}</span>
               </button>
               <button

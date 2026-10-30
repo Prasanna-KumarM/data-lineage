@@ -56,6 +56,8 @@ export interface Choice {
   is_terminal: boolean
   has_more_upstream: boolean
   upstream_choice_count: number
+  /** Mappings sharing this path; present from the contributors table. */
+  contributor_count?: number
 }
 
 export interface TerminalSource {
@@ -139,6 +141,18 @@ export interface StepDetail {
   dependencies: Dependency[]
   persistence: { status: string; reason_code: string | null; reason: string | null } | null
   step_ids: string[]
+  contributors?: Contributor[]
+}
+
+export interface Contributor {
+  relation_id: string
+  relation_type: string
+  driving_expression: string | null
+  result_expression: string | null
+  component_id: string | null
+  component_name: string | null
+  component_type: string | null
+  business_process_name: string | null
 }
 
 export type SourceKind = 'column' | 'constant' | 'function' | 'not_persisted'

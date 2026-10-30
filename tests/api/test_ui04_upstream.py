@@ -139,46 +139,46 @@ def test_sp_clo_selected_branch_hides_sibling_routes(sp_clo):
 def test_sp_clo_four_hop_chain_walks_to_three_siblings(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    # Two mappings (one per component) reach the same endpoint, so both continue the same way.
-    assert _names(roots) == ["CM_CLO_OFFER.e_fdk_mt"] * 2
-    assert len({c["step_id"] for c in roots}) == 2
-    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
-    for root in roots:
-        level = [root]
-        walked = []
-        while len(level) == 1:
-            walked.append(level[0])
-            level = get_upstream_choices(sp_clo, level[0]["step_id"])
-        assert [c["relation_type"] for c in walked] == [
-            "EXPLICIT_INATTR", "EXPLICIT_PATHFROM_PATHTO", "ENRICHMENT_LOOKUP",
-        ]
-        assert _names(level) == [
-            "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
-            "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
-            "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
-        ]
-        assert all(c["is_terminal"] for c in level)
+    # Two mappings (one per component) reach the same endpoint, merged into one card.
+    assert _names(roots) == ["CM_CLO_OFFER.e_fdk_mt"]
+    assert roots[0]["contributor_count"] == 2
+    assert [c["upstream_choice_count"] for c in roots] == [1]
+    level = roots
+    walked = []
+    while len(level) == 1:
+        walked.append(level[0])
+        level = get_upstream_choices(sp_clo, level[0]["step_id"])
+    assert [c["relation_type"] for c in walked] == [
+        "EXPLICIT_INATTR", "EXPLICIT_PATHFROM_PATHTO", "ENRICHMENT_LOOKUP",
+    ]
+    assert _names(level) == [
+        "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
+        "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
+        "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
+    ]
+    assert all(c["is_terminal"] for c in level)
 
 
 def test_sp_clo_contract_id_both_mappings_lead_to_the_same_three_steps(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "CONTRACT_ID")
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    assert {c["component_name"] for c in roots} == {"CM_CLO_OFR_COMM Mapping", "CM_CLO_OFR_Fair Value Mapping"}
-    assert _names(roots) == ["CM_CLO_OFFER.e_contract_id"] * 2
-    assert [c["upstream_choice_count"] for c in roots] == [3, 3]
-    below = [get_upstream_choices(sp_clo, c["step_id"]) for c in roots]
-    assert [b["step_id"] for b in below[0]] == [b["step_id"] for b in below[1]]
-    assert sorted(b["component_name"] for b in below[0]) == ["CM_CLO_OFR_HTC", "CM_CLO_OFR_HTCS", "CM_CLO_OFR_HTS"]
-    assert _names(below[0]) == ["CM_CLO_OFFER.OFR_ID"] * 3
+    # The two mappings merge into one card; its contributors carry both components.
+    assert _names(roots) == ["CM_CLO_OFFER.e_contract_id"]
+    assert roots[0]["contributor_count"] == 2
+    assert [c["upstream_choice_count"] for c in roots] == [1]
+    below = get_upstream_choices(sp_clo, roots[0]["step_id"])
+    assert _names(below) == ["CM_CLO_OFFER.OFR_ID"]
+    # The three rule calls merge into one step with three contributors.
+    assert below[0]["contributor_count"] == 3
 
 
 def test_sp_clo_counterparty_country_both_mappings_lead_to_the_same_lookup(sp_clo):
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "COUNTERPARTY_COUNTRY_ISO_CODE")
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
-    below = [get_upstream_choices(sp_clo, c["step_id"]) for c in roots]
-    assert [b["step_id"] for b in below[0]] == [b["step_id"] for b in below[1]]
-    assert below[0][0]["component_name"] == "CLO_CM_OFR_Enrichment"
+    assert [c["upstream_choice_count"] for c in roots] == [1]
+    assert roots[0]["contributor_count"] == 2
+    below = get_upstream_choices(sp_clo, roots[0]["step_id"])
+    assert below[0]["component_name"] == "CLO_CM_OFR_Enrichment"
 
 
 def test_sp_clo_every_same_endpoint_root_pair_now_agrees(sp_clo):
@@ -229,3 +229,26 @@ def test_extractor_populated_is_terminal_is_honoured(sp_clo):
     assert again["is_terminal"] is True and again["has_more_upstream"] is False
     assert again["upstream_choice_count"] == 0
     assert get_upstream_choices(sp_clo, branching["step_id"]) == []
+
+
+def test_merged_step_detail_lists_its_contributors(sp_clo):
+    from lineage_api.detail import get_step_detail
+
+    obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
+    (root,) = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    detail = get_step_detail(sp_clo, root["step_id"])
+    assert [(c["component_name"], c["relation_type"]) for c in detail["contributors"]] == [
+        ("CM_CLO_OFR_COMM Mapping", "EXPLICIT_INATTR"),
+        ("CM_CLO_OFR_Fair Value Mapping", "EXPLICIT_INATTR"),
+    ]
+    assert len({c["relation_id"] for c in detail["contributors"]}) == 2
+
+
+def test_single_mapping_steps_have_one_contributor(sp_clo):
+    from lineage_api.detail import get_step_detail
+
+    obj, col = _target(sp_clo, "AR_PAR_LOAN_EVENTS", "MDE_CODE")
+    (root,) = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    assert root["contributor_count"] == 1
+    detail = get_step_detail(sp_clo, root["step_id"])
+    assert len(detail["contributors"]) == 1

@@ -54,7 +54,7 @@ describeReal('graph view of a column on the real SP_CLO lineage', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Lineage graph of FDK_MT' })
     await within(dialog).findAllByTestId('graph-node-target')
     expect(textOf(dialog)).toContain('CM_PAR_LOAN_TRADES.FDK_MT')
-    expect(textOf(dialog)).toContain('3 ultimate sources · up to 4 hops · 7 mappings')
+    expect(textOf(dialog)).toContain('3 ultimate sources · up to 4 hops · 6 mappings')
     expect(nodesOf(dialog, 'target')).toHaveLength(1)
     expect(nodesOf(dialog, 'intermediate')).toHaveLength(3)
     const sources = nodesOf(dialog, 'source')

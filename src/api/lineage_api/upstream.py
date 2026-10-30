@@ -35,6 +35,21 @@ _CHOICE_SELECT = """
 _ORDER = " ORDER BY c.source_object_name, c.source_column_name, c.step_id"
 
 
+def _has_contributors(conn: sqlite3.Connection) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_lineage_step_contributor'"
+    ).fetchone() is not None
+
+
+def _choice_select(conn: sqlite3.Connection) -> str:
+    contributors = (
+        "COALESCE((SELECT COUNT(*) FROM business_lineage_step_contributor bc WHERE bc.step_id = c.step_id), 1)"
+        if _has_contributors(conn)
+        else "1"
+    )
+    return _CHOICE_SELECT + f", {contributors} AS contributor_count "
+
+
 def _to_choice(row: sqlite3.Row) -> dict[str, Any]:
     choice = dict(row)
     count = choice["upstream_choice_count"]
@@ -57,7 +72,7 @@ def get_root_choices(
     if business_process_id is not None:
         params += (business_process_id,)
     rows = conn.execute(
-        _CHOICE_SELECT
+        _choice_select(conn)
         + """FROM business_lineage_step c
              JOIN business_process bp ON bp.business_process_id = c.business_process_id
              WHERE c.lineage_level = 0 AND bp.project_name = ?
@@ -76,7 +91,7 @@ def get_upstream_choices(conn: sqlite3.Connection, step_id: str) -> list[dict[st
     ).fetchone() is None:
         raise StepNotFound(step_id)
     rows = conn.execute(
-        _CHOICE_SELECT
+        _choice_select(conn)
         + """FROM business_lineage_step p
              JOIN business_lineage_step c
                ON c.root_target_object_id = p.root_target_object_id

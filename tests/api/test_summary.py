@@ -166,7 +166,7 @@ def test_fdk_mt_has_three_sources_four_hops_each(sp_clo):
     assert [r["relation_type"] for r in first["route"]] == [
         "EXPLICIT_INATTR", "EXPLICIT_PATHFROM_PATHTO", "ENRICHMENT_LOOKUP", "EXPLICIT_INATTR",
     ]
-    assert first["route_count"] == 2  # both mappings (COMM and Fair Value) reach it
+    assert first["route_count"] == 1  # both mappings (COMM and Fair Value) merge into one path
     assert col["flags"] == {"constant": False, "function": False, "not_persisted": False,
                             "case_branches": False, "inferred": False}
 
@@ -176,7 +176,7 @@ def test_contract_id_counts_all_routes_into_the_one_source(sp_clo):
     (source,) = col["sources"]
     assert (source["object_name"], source["column_name"]) == ("CM_CLO_OFFER", "OFR_ID")
     assert (source["hops_min"], source["hops_max"]) == (2, 2)
-    assert source["route_count"] == 6  # 2 mappings x 3 rule calls
+    assert source["route_count"] == 1  # the 2 mappings x 3 rule calls merge into one path
 
 
 def test_case_branches_to_one_constant_stay_separate_with_their_conditions(sp_clo):
