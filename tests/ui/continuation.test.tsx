@@ -45,6 +45,10 @@ describeReal('continuing the walkthrough in another project', () => {
 
     await user.click(track)
     expect((await screen.findByRole('note')).textContent).toContain('Tracking CM_PAR_LOAN_TRADES.FDK_MT in SP_CLO')
+    // The chain next to the view toggle shows both applications, current one last.
+    const chain = screen.getByRole('navigation', { name: 'Applications' })
+    expect(chain.textContent).toBe('SP_CLO › SP_CLO')
+    expect(chain.querySelectorAll('button')).toHaveLength(1)
     const session2 = screen.getByRole('region', { name: 'Lineage session' })
     await within(session2).findByRole('list', { name: 'Upstream mappings' })
     expect(within(session2).getByText('CM_PAR_LOAN_TRADES')).toBeTruthy()
@@ -57,6 +61,7 @@ describeReal('continuing the walkthrough in another project', () => {
     await waitFor(() => expect(screen.queryByRole('note')).toBeNull())
     const workspaceBack = screen.getByRole('region', { name: 'Lineage session' })
     await within(workspaceBack).findByRole('list', { name: 'Upstream mappings' })
+    expect(screen.getByRole('navigation', { name: 'Applications' }).textContent).toBe('SP_CLO')
   })
 
   it('offers a prominent Continue button next to the ultimate source', async () => {

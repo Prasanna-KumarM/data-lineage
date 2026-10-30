@@ -138,17 +138,18 @@ interface WalkProps {
   onTrack?: (cont: Continuation, fromLabel: string) => void
   onLeave?: () => void
   returnTo?: string
+  appName?: string
 }
 
-export function GraphWalkthrough({ client, target, onTrack, onLeave, returnTo }: WalkProps) {
+export function GraphWalkthrough({ client, target, onTrack, onLeave, returnTo, appName }: WalkProps) {
   const graph = useAsync((signal) => client.columnGraph(target, signal), `walkgraph:${target.project}:${target.objectId}:${target.columnId}`)
   if (graph.status === 'loading' || graph.status === 'idle') return <LoadingNotice text="Loading lineage graph…" />
   if (graph.status === 'error') return <ErrorNotice error={graph.error} onRetry={graph.reload} />
   if (!graph.data.has_lineage) return <p className="status">No lineage found for this column.</p>
-  return <Walk graph={graph.data} client={client} target={target} onTrack={onTrack} onLeave={onLeave} returnTo={returnTo} />
+  return <Walk graph={graph.data} client={client} target={target} onTrack={onTrack} onLeave={onLeave} returnTo={returnTo} appName={appName} />
 }
 
-function Walk({ graph, client, target, onTrack, onLeave, returnTo }: WalkProps & { graph: ColumnGraph }) {
+function Walk({ graph, client, target, onTrack, onLeave, returnTo, appName }: WalkProps & { graph: ColumnGraph }) {
   const [walk, setWalk] = useState<WalkState>(initialWalk)
   const [detailStep, setDetailStep] = useState<string | null>(null)
   const [developer, setDeveloper] = useState(false)
@@ -273,7 +274,7 @@ function Walk({ graph, client, target, onTrack, onLeave, returnTo }: WalkProps &
       <div className="walk-bar graph-walk-bar">
         <div className="panel-head">
           <h2 className="panel-title">Where does this come from?</h2>
-          <span className="app-badge">{target.project}</span>
+            <span className="app-badge">{appName ?? target.project}</span>
           <span className="hop-badge">Step {walk.path.length + 1}</span>
         </div>
         <p className="walk-instruction" aria-live="polite">

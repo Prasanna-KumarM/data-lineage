@@ -49,7 +49,9 @@ class ProjectRegistry:
         if not names:
             return [{"project_name": folder, "folder": folder, "path": path, "ready": False,
                      "problem": "The database has no lineage."}]
+        application = (path.parent / "application").read_text().strip() if (path.parent / "application").is_file() else None
         return [{"project_name": n, "folder": folder, "path": path, "ready": True, "problem": None,
+                 "application": application or None,
                  "startable": not (path.parent / "continuation_only").exists()} for n in names]
 
     def entries(self) -> list[dict[str, Any]]:

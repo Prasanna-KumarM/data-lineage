@@ -61,8 +61,8 @@ export function SummaryPage({ client, route }: Props) {
           >
             <option value="">Select a project</option>
             {entries.map((p) => (
-              <option key={p.project_name} value={p.project_name} disabled={p.ready === false} title={p.problem}>
-                {p.ready === false ? `${p.project_name} (not ready)` : p.project_name}
+              <option key={p.project_name} value={p.project_name} disabled={p.ready === false} title={p.problem ?? (p.application ? p.project_name : undefined)}>
+                {p.ready === false ? `${p.application ?? p.project_name} (not ready)` : p.application ?? p.project_name}
               </option>
             ))}
           </select>

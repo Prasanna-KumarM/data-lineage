@@ -15,8 +15,8 @@ export function TargetSelectors({ catalog, selection, dispatch }: Props) {
 
   const projectOptions = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false).map((p) =>
         p.ready === false
-          ? { value: p.project_name, label: `${p.project_name} (not ready)`, disabled: true, title: p.problem }
-          : { value: p.project_name, label: p.project_name },
+          ? { value: p.project_name, label: `${p.application ?? p.project_name} (not ready)`, disabled: true, title: p.problem }
+          : { value: p.project_name, label: p.application ?? p.project_name, title: p.application ? p.project_name : undefined },
       ) : []
   const objectOptions =
     selection.project && targets.status === 'success'

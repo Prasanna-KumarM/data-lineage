@@ -12,6 +12,8 @@ class ProjectOut(BaseModel):
     problem: Optional[str] = None
     # Only sent (false) for projects reachable only through continuation, not as a start point.
     startable: Optional[bool] = None
+    # Application name shown instead of the project code, when configured.
+    application: Optional[str] = None
 
 
 class BusinessProcessOut(BaseModel):

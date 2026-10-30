@@ -1370,3 +1370,37 @@ button.dot:focus-visible {
 }
 
 .source-track:hover { background: #155e75; }
+
+/* Toggle and application chain on one row */
+.view-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.view-bar .view-toggle { margin-bottom: 0; }
+
+.app-chain {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #374151;
+}
+
+.app-chain button {
+  padding: 2px 6px;
+  font: inherit;
+  font-weight: 600;
+  color: #1d4ed8;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.app-chain button:hover { background: #eff6ff; }
+.app-chain strong { color: #7c3aed; }

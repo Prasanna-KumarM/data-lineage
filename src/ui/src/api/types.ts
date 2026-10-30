@@ -6,6 +6,8 @@ export interface Project {
   problem?: string
   /** Only present (false) when the project is reachable only through continuation. */
   startable?: boolean
+  /** Application name shown instead of the project code, when configured. */
+  application?: string
 }
 
 export interface BusinessProcess {

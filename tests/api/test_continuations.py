@@ -53,10 +53,11 @@ def test_continuation_only_projects_are_not_startable(tmp_path):
     import shutil
 
     src = ROOT / "outputs" / "SP_CLO" / "lineage.db"
-    for folder, marker in (("PAR_APP", False), ("FPL", True)):
+    for folder, marker, app in (("PAR_APP", False, "PAR"), ("FPL", True, "FPL")):
         d = tmp_path / folder
         d.mkdir()
         shutil.copy(src, d / "lineage.db")
+        (d / "application").write_text(app)
         if marker:
             (d / "continuation_only").touch()
     client = TestClient(create_app(outputs_dir=str(tmp_path)))
@@ -64,5 +65,7 @@ def test_continuation_only_projects_are_not_startable(tmp_path):
     projects = {p["folder"]: p for p in client.get("/projects").json()}
     assert "startable" not in projects["PAR_APP"]
     assert projects["FPL"]["startable"] is False
+    assert projects["PAR_APP"]["application"] == "PAR"
+    assert projects["FPL"]["application"] == "FPL"
     # It still answers lineage calls.
     assert client.get("/targets", params={"project": "SP_CLO"}).status_code == 200

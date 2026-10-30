@@ -171,6 +171,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
             return [
                 {"project_name": e["project_name"], "folder": e["folder"],
                  **({} if e["ready"] else {"ready": False, "problem": e["problem"]}),
+                 **({"application": e["application"]} if e.get("application") else {}),
                  **({} if e.get("startable", True) else {"startable": False})}
                 for e in registry.entries()
             ]

@@ -13,7 +13,7 @@ function show(client: ApiClient, hash: string) {
   return user
 }
 
-const scripted = (projects: { project_name: string; ready?: boolean; problem?: string; startable?: boolean }[]): ApiClient => ({
+const scripted = (projects: { project_name: string; ready?: boolean; problem?: string; startable?: boolean; application?: string }[]): ApiClient => ({
   projects: async () => projects,
   targets: async () => [],
   columns: async () => [],
@@ -59,6 +59,20 @@ describe('choosing a project on the summary page', () => {
     show(scripted([projects[0]]), '#/summary')
     expect((await screen.findByText(/^GP_BROKEN: The database needs to be migrated/)).textContent).toContain('--migrate')
     expect(screen.queryByLabelText('Search target tables')).toBeNull()
+  })
+
+  it('shows the application name instead of the project code', async () => {
+    const apps = [
+      { project_name: 'SP_CLO', application: 'PAR' },
+      { project_name: 'SP_LIQ', application: 'PAR' },
+    ]
+    show(scripted(apps), '#/summary')
+    const select = (await screen.findByLabelText('Project')) as HTMLSelectElement
+    expect(Array.from(select.options).map((o) => [o.textContent, o.value])).toEqual([
+      ['Select a project', ''],
+      ['PAR', 'SP_CLO'],
+      ['PAR', 'SP_LIQ'],
+    ])
   })
 
   it('hides continuation-only projects on both pages', async () => {

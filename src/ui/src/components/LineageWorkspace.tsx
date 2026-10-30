@@ -31,6 +31,8 @@ interface SessionCallbacks {
   /** Set when this frame was entered from another project: Back at the start returns there. */
   onLeave?: () => void
   returnTo?: string
+  /** Application name of the current frame's project. */
+  appName?: string
 }
 
 export function LineageWorkspace({ client, target, object, column, allObjects }: Props) {
@@ -56,6 +58,9 @@ function Framed({
   const [frames, setFrames] = useState<Frame[]>([{ key: baseKey, target, object, column }])
   const frame = frames[frames.length - 1]
   const previous = frames[frames.length - 2]
+  const apps = useAsync((signal) => client.projects(signal), 'projects')
+  const appOf = (p: string) =>
+    (apps.status === 'success' ? apps.data.find((x) => x.project_name === p)?.application : undefined) ?? p
 
   const track = useCallback(
     async (cont: Continuation, fromLabel: string) => {
@@ -82,17 +87,34 @@ function Framed({
     onTrack: track,
     onLeave: frames.length > 1 ? leave : undefined,
     returnTo: previous ? `${previous.object.object_name}.${previous.column.column_name} (${previous.target.project})` : undefined,
+    appName: appOf(frame.target.project),
   }
 
   return (
     <>
-      <div className="view-toggle" role="group" aria-label="Walkthrough view">
-        <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>
-          List view
-        </button>
-        <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>
-          Graph view
-        </button>
+      <div className="view-bar">
+        <div className="view-toggle" role="group" aria-label="Walkthrough view">
+          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>
+            List view
+          </button>
+          <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>
+            Graph view
+          </button>
+        </div>
+        <nav className="app-chain" aria-label="Applications">
+          {frames.map((f, i) => (
+            <span key={f.key} className="app-chain-item">
+              {i > 0 && <span aria-hidden="true"> › </span>}
+              {i < frames.length - 1 ? (
+                <button type="button" onClick={() => setFrames((fs) => fs.slice(0, i + 1))}>
+                  {appOf(f.target.project)}
+                </button>
+              ) : (
+                <strong>{appOf(f.target.project)}</strong>
+              )}
+            </span>
+          ))}
+        </nav>
       </div>
       {frames.length > 1 && (
         <p className="frame-note" role="note">
@@ -103,7 +125,7 @@ function Framed({
         </p>
       )}
       {view === 'graph' ? (
-        <GraphWalkthrough key={frame.key} client={client} target={frame.target} onTrack={track} onLeave={callbacks.onLeave} returnTo={callbacks.returnTo} />
+        <GraphWalkthrough key={frame.key} client={client} target={frame.target} onTrack={track} onLeave={callbacks.onLeave} returnTo={callbacks.returnTo} appName={callbacks.appName} />
       ) : (
         <Session key={frame.key} client={client} target={frame.target} object={frame.object} column={frame.column} allObjects={allObjects} sessionKey={frame.key} {...callbacks} />
       )}
@@ -140,6 +162,7 @@ function Session({
   onTrack,
   onLeave,
   returnTo,
+  appName,
 }: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string } & SessionCallbacks) {
   // Step and relation requests carry no project, so every request of this session names it.
   const client = useMemo(() => bindProject(unboundClient, target.project), [unboundClient, target.project])
@@ -288,13 +311,13 @@ function Session({
 
   return (
     <div className="workspace" role="region" aria-label="Lineage session">
-      <TargetPanel project={target.project} object={object} allObjects={allObjects} column={column} />
+      <TargetPanel project={target.project} appName={appName} object={object} allObjects={allObjects} column={column} />
 
       <section className="panel choices-panel" aria-label="Upstream choices">
         <div className="walk-bar">
           <div className="panel-head">
             <h2 className="panel-title">Where does this come from?</h2>
-            <span className="app-badge">{target.project}</span>
+            <span className="app-badge">{appName ?? target.project}</span>
             <span className="hop-badge">{stepText}</span>
           </div>
           <p className="walk-instruction" aria-live="polite">
