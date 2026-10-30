@@ -1,0 +1,157 @@
+"""DDL for the generated lineage database (same schema as the PAR project databases, FKs omitted)."""
+
+TABLES = [
+    """CREATE TABLE business_process (
+    business_process_id TEXT PRIMARY KEY,
+    project_name TEXT NOT NULL,
+    business_process_name TEXT NOT NULL,
+    revision_number TEXT,
+    evidence_id TEXT,
+    UNIQUE (project_name, business_process_name)
+)""",
+    """CREATE TABLE component (
+    component_id TEXT PRIMARY KEY,
+    business_process_id TEXT NOT NULL,
+    local_block_id TEXT NOT NULL,
+    component_type TEXT NOT NULL,
+    component_name TEXT,
+    is_active INTEGER,
+    is_visible INTEGER,
+    referenced_element_type TEXT,
+    referenced_element_name TEXT,
+    referenced_project_name TEXT,
+    UNIQUE (business_process_id, local_block_id)
+)""",
+    """CREATE TABLE canonical_object (
+    object_id TEXT PRIMARY KEY,
+    object_name TEXT NOT NULL,
+    object_type TEXT NOT NULL,
+    source_project TEXT NOT NULL,
+    UNIQUE (source_project, object_type, object_name)
+)""",
+    """CREATE TABLE canonical_column (
+    column_id TEXT PRIMARY KEY,
+    object_id TEXT NOT NULL,
+    column_name TEXT NOT NULL,
+    declared_type TEXT,
+    is_declared INTEGER NOT NULL DEFAULT 0,
+    is_inferred INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (object_id, column_name)
+)""",
+    """CREATE TABLE column_relation (
+    relation_id TEXT PRIMARY KEY,
+    relation_type TEXT NOT NULL,
+    component_id TEXT,
+    path_step_id TEXT,
+    connection_id TEXT,
+    source_object_id TEXT NOT NULL,
+    source_column_id TEXT NOT NULL,
+    target_object_id TEXT NOT NULL,
+    target_column_id TEXT NOT NULL,
+    expression_id TEXT,
+    traversal_path TEXT,
+    driving_expression TEXT,
+    result_expression TEXT
+)""",
+    """CREATE TABLE business_lineage_step (
+    step_id TEXT NOT NULL PRIMARY KEY,
+    path_id TEXT NOT NULL,
+    lineage_level INTEGER NOT NULL,
+    is_terminal INTEGER NOT NULL DEFAULT 0,
+    root_target_object_id TEXT NOT NULL,
+    root_target_column_id TEXT NOT NULL,
+    root_target_object_name TEXT NOT NULL,
+    root_target_column_name TEXT NOT NULL,
+    relation_id TEXT NOT NULL,
+    relation_type TEXT NOT NULL,
+    source_object_id TEXT NOT NULL,
+    source_column_id TEXT NOT NULL,
+    source_object_name TEXT NOT NULL,
+    source_column_name TEXT NOT NULL,
+    target_object_id TEXT NOT NULL,
+    target_column_id TEXT NOT NULL,
+    target_object_name TEXT NOT NULL,
+    target_column_name TEXT NOT NULL,
+    component_id TEXT,
+    component_name TEXT,
+    component_type TEXT,
+    business_process_id TEXT,
+    business_process_name TEXT,
+    confidence_class TEXT,
+    confidence_reason_code TEXT,
+    traversal_path TEXT,
+    driving_expression TEXT,
+    result_expression TEXT,
+    expression_id TEXT,
+    hop_count INTEGER,
+    lineage_chain TEXT NOT NULL,
+    complete_lineage_path TEXT,
+    relation_type_path TEXT,
+    component_path TEXT,
+    driving_expression_path TEXT,
+    result_expression_path TEXT
+)""",
+    """CREATE TABLE business_lineage_step_contributor (
+    step_id TEXT NOT NULL,
+    relation_id TEXT NOT NULL,
+    PRIMARY KEY (step_id, relation_id)
+)""",
+    """CREATE TABLE business_process_invocation (
+    invocation_id TEXT PRIMARY KEY,
+    calling_business_process_id TEXT NOT NULL,
+    call_component_id TEXT NOT NULL,
+    referenced_business_process_name TEXT NOT NULL,
+    referenced_project_name TEXT NOT NULL,
+    referenced_business_process_id TEXT,
+    resolution_status TEXT NOT NULL,
+    evidence_id TEXT
+)""",
+    """CREATE TABLE canonical_confidence (
+    relation_id TEXT PRIMARY KEY,
+    relation_type TEXT NOT NULL,
+    confidence_class TEXT NOT NULL,
+    confidence_reason_code TEXT NOT NULL,
+    confidence_reason TEXT
+)""",
+    """CREATE TABLE canonical_evidence (
+    evidence_id TEXT PRIMARY KEY,
+    assertion_id TEXT NOT NULL,
+    assertion_type TEXT NOT NULL,
+    business_process_id TEXT,
+    component_id TEXT,
+    source_metadata_locator TEXT NOT NULL,
+    construct_type TEXT,
+    expression_text TEXT,
+    parser_version TEXT NOT NULL,
+    extraction_run_id TEXT NOT NULL
+)""",
+    """CREATE TABLE expression_dependency (
+    expression_dependency_id TEXT PRIMARY KEY,
+    expression_id TEXT NOT NULL,
+    relation_id TEXT NOT NULL,
+    component_id TEXT,
+    operand_object_id TEXT,
+    operand_column_id TEXT,
+    operand_order INTEGER
+)""",
+    """CREATE TABLE extraction_issue (
+    extraction_issue_id TEXT PRIMARY KEY,
+    extraction_run_id TEXT NOT NULL,
+    severity TEXT,
+    reason_code TEXT,
+    message TEXT,
+    source_locator TEXT,
+    business_process_id TEXT,
+    component_id TEXT
+)""",
+    """CREATE TABLE extraction_run (
+    extraction_run_id TEXT PRIMARY KEY,
+    source_file_name TEXT,
+    source_file_hash TEXT,
+    parser_version TEXT,
+    schema_version TEXT,
+    identity_version TEXT,
+    extraction_timestamp TEXT,
+    extraction_status TEXT
+)""",
+]
