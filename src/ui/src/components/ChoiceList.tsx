@@ -1,4 +1,4 @@
-import type { Choice } from '../api/types'
+import type { Choice, Continuation } from '../api/types'
 import { ConfidenceBadge, RelationBadge } from './Badges'
 import { relationStyle } from './relationStyle'
 
@@ -9,6 +9,9 @@ interface Props {
   detailStepId: string | null
   /** True for the target's own choices, where "no intermediate steps" is accurate. */
   atRoot: boolean
+  /** Continuations of terminal choices into other projects, keyed by OBJECT.COLUMN. */
+  continuations?: Map<string, Continuation[]>
+  onTrack?: (cont: Continuation, fromLabel: string) => void
   onSelect: (stepId: string | null) => void
   onDetails: (stepId: string, trigger: HTMLElement) => void
 }
@@ -27,7 +30,7 @@ function terminalNote(count: number, atRoot: boolean): string {
 }
 
 /** Shows only the immediate choices; picking one marks it but does not move into the branch. */
-export function ChoiceList({ choices, selectedStepId, detailStepId, atRoot, onSelect, onDetails }: Props) {
+export function ChoiceList({ choices, selectedStepId, detailStepId, atRoot, continuations, onTrack, onSelect, onDetails }: Props) {
   if (choices.length === 0) return <p className="status">No upstream lineage was found for this step.</p>
   const allTerminal = choices.every((c) => !c.has_more_upstream)
   return (
@@ -78,6 +81,11 @@ export function ChoiceList({ choices, selectedStepId, detailStepId, atRoot, onSe
               >
                 Details
               </button>
+              {continuations?.get(endpoint)?.map((cont) => (
+                <button key={cont.project} type="button" className="card-track" onClick={() => onTrack?.(cont, endpoint)}>
+                  Track in {cont.project} →
+                </button>
+              ))}
             </li>
           )
         })}

@@ -10,6 +10,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from lineage_api import schemas
 from lineage_api.catalog import list_projects, list_target_columns, list_target_objects, search_target_objects
+from lineage_api.continuations import find_continuations
 from lineage_api.export import build_table_workbook
 from lineage_api.db import (
     ENV_DB_PATH,
@@ -169,7 +170,9 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         if registry is not None:
             return [
                 {"project_name": e["project_name"], "folder": e["folder"],
-                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]})}
+                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]}),
+                 **({"application": e["application"]} if e.get("application") else {}),
+                 **({} if e.get("startable", True) else {"startable": False})}
                 for e in registry.entries()
             ]
         conn = open_readonly(_db_path(request))
@@ -329,6 +332,18 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         if _has_target_components(conn) and target_column_pairs(conn, project, object_id, column_id):
             return build_target_graph(conn, project, object_id, column_id)
         return build_column_graph(conn, project, object_id, column_id)
+
+    @app.get("/lineage/continuations", response_model=list[schemas.ContinuationOut])
+    def continuations(
+        request: Request,
+        project: str = Query(...),
+        object_name: str = Query(...),
+        column_name: str = Query(...),
+    ):
+        registry = _registry(request)
+        if registry is None:
+            return []
+        return find_continuations(registry, project, object_name, column_name)
 
     @app.get("/lineage/remaining-depth", response_model=schemas.RemainingDepthOut)
     def remaining_depth(step_id: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):

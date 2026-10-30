@@ -10,6 +10,10 @@ class ProjectOut(BaseModel):
     # Only sent when a project's database exists but cannot be used yet.
     ready: Optional[bool] = None
     problem: Optional[str] = None
+    # Only sent (false) for projects reachable only through continuation, not as a start point.
+    startable: Optional[bool] = None
+    # Application name shown instead of the project code, when configured.
+    application: Optional[str] = None
 
 
 class BusinessProcessOut(BaseModel):
@@ -82,6 +86,13 @@ class UltimateSourcesOut(BaseModel):
     column_id: str
     step_id: Optional[str] = None
     terminal_sources: list[TerminalSourceOut]
+
+
+class ContinuationOut(BaseModel):
+    """A project where an ultimate source continues as a target column."""
+    project: str
+    object_id: str
+    column_id: str
 
 
 class RemainingDepthOut(BaseModel):

@@ -1,5 +1,6 @@
 import type {
   ColumnGraph,
+  Continuation,
   Project,
   RemainingDepth,
   StepDetail,
@@ -37,6 +38,8 @@ export interface ApiClient {
   remainingDepth(stepId: string, signal?: AbortSignal): Promise<RemainingDepth>
   stepDetail(stepId: string, signal?: AbortSignal): Promise<StepDetail>
   ultimateSources(target: TargetRef, signal?: AbortSignal, stepId?: string): Promise<UltimateSourcesResponse>
+  /** Other projects where an ultimate source continues as a target column. */
+  continuations(project: string, objectName: string, columnName: string, signal?: AbortSignal): Promise<Continuation[]>
   /** The same client, with every request sent for one project (needed by calls that carry no project of their own). */
   forProject?(project: string): ApiClient
 }
@@ -101,6 +104,8 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl, project }:
     stepDetail: (stepId, signal) => get(`/steps/${encodeURIComponent(stepId)}`, {}, signal),
     ultimateSources: (target, signal, stepId) =>
       get('/lineage/ultimate-sources', { ...targetParams(target), ...(stepId ? { step_id: stepId } : {}) }, signal),
+    continuations: (project, objectName, columnName, signal) =>
+      get('/lineage/continuations', { project, object_name: objectName, column_name: columnName }, signal),
   }
 }
 

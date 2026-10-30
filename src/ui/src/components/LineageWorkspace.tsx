@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import { ApiError, bindProject, type ApiClient } from '../api/client'
-import type { Choice, TargetColumn, TargetObject, TargetRef } from '../api/types'
+import type { Choice, Continuation, TargetColumn, TargetObject, TargetRef } from '../api/types'
 import { useAsync, type AsyncState } from '../hooks/useAsync'
 import { activeStepId, initialNavigation, navigationReducer } from '../state/navigation'
 import { ChoiceList } from './ChoiceList'
@@ -18,27 +18,116 @@ interface Props {
   allObjects: TargetObject[]
 }
 
+export interface Frame {
+  key: string
+  target: TargetRef
+  object: TargetObject
+  column: TargetColumn
+}
+
+interface SessionCallbacks {
+  /** Continue walking in another project's database. */
+  onTrack: (cont: Continuation, fromLabel: string) => void
+  /** Set when this frame was entered from another project: Back at the start returns there. */
+  onLeave?: () => void
+  returnTo?: string
+  /** Application name of the current frame's project. */
+  appName?: string
+}
+
 export function LineageWorkspace({ client, target, object, column, allObjects }: Props) {
   const [view, setView] = useState<'list' | 'graph'>('list')
   if (!target || !object || !column) {
     return <p className="placeholder">Select a project, target object and target column to start.</p>
   }
   const key = `${target.project}:${target.objectId}:${target.columnId}`
-  // Keyed so that choosing another target discards the whole navigation state.
+  // Keyed so that choosing another target discards the frames as well as the navigation state.
+  return <Framed key={key} client={client} target={target} object={object} column={column} allObjects={allObjects} view={view} setView={setView} baseKey={key} />
+}
+
+function Framed({
+  client,
+  target,
+  object,
+  column,
+  allObjects,
+  view,
+  setView,
+  baseKey,
+}: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; view: 'list' | 'graph'; setView: (v: 'list' | 'graph') => void; baseKey: string }) {
+  const [frames, setFrames] = useState<Frame[]>([{ key: baseKey, target, object, column }])
+  const frame = frames[frames.length - 1]
+  const previous = frames[frames.length - 2]
+  const apps = useAsync((signal) => client.projects(signal), 'projects')
+  const appOf = (p: string) =>
+    (apps.status === 'success' ? apps.data.find((x) => x.project_name === p)?.application : undefined) ?? p
+
+  const track = useCallback(
+    async (cont: Continuation, fromLabel: string) => {
+      const objects = await client.targets(cont.project)
+      const nextObject = objects.find((o) => o.object_id === cont.object_id)
+      const columns = nextObject ? await client.columns(cont.project, cont.object_id) : undefined
+      const nextColumn = columns?.find((c) => c.column_id === cont.column_id)
+      if (!nextObject || !nextColumn) return
+      setFrames((fs) => [
+        ...fs,
+        {
+          key: `${cont.project}:${cont.object_id}:${cont.column_id}:${fs.length}`,
+          target: { project: cont.project, objectId: cont.object_id, columnId: cont.column_id },
+          object: nextObject,
+          column: nextColumn,
+        },
+      ])
+      void fromLabel
+    },
+    [client],
+  )
+  const leave = useCallback(() => setFrames((fs) => (fs.length > 1 ? fs.slice(0, -1) : fs)), [])
+  const callbacks: SessionCallbacks = {
+    onTrack: track,
+    onLeave: frames.length > 1 ? leave : undefined,
+    returnTo: previous ? `${previous.object.object_name}.${previous.column.column_name} (${previous.target.project})` : undefined,
+    appName: appOf(frame.target.project),
+  }
+
   return (
     <>
-      <div className="view-toggle" role="group" aria-label="Walkthrough view">
-        <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>
-          List view
-        </button>
-        <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>
-          Graph view
-        </button>
+      <div className="view-bar">
+        <div className="view-toggle" role="group" aria-label="Walkthrough view">
+          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>
+            List view
+          </button>
+          <button type="button" aria-pressed={view === 'graph'} onClick={() => setView('graph')}>
+            Graph view
+          </button>
+        </div>
+        <nav className="app-chain" aria-label="Applications">
+          {frames.map((f, i) => (
+            <span key={f.key} className="app-chain-item">
+              {i > 0 && <span aria-hidden="true"> › </span>}
+              {i < frames.length - 1 ? (
+                <button type="button" onClick={() => setFrames((fs) => fs.slice(0, i + 1))}>
+                  {appOf(f.target.project)}
+                </button>
+              ) : (
+                <strong>{appOf(f.target.project)}</strong>
+              )}
+            </span>
+          ))}
+        </nav>
       </div>
+      {frames.length > 1 && (
+        <p className="frame-note" role="note">
+          Tracking <strong>{frame.object.object_name}.{frame.column.column_name}</strong> in <strong>{frame.target.project}</strong>
+          {previous && <>
+            {' '}· started from {previous.object.object_name}.{previous.column.column_name} ({previous.target.project})
+          </>}
+        </p>
+      )}
       {view === 'graph' ? (
-        <GraphWalkthrough key={key} client={client} target={target} />
+        <GraphWalkthrough key={frame.key} client={client} target={frame.target} onTrack={track} onLeave={callbacks.onLeave} returnTo={callbacks.returnTo} appName={callbacks.appName} />
       ) : (
-        <Session key={key} client={client} target={target} object={object} column={column} allObjects={allObjects} sessionKey={key} />
+        <Session key={frame.key} client={client} target={frame.target} object={frame.object} column={frame.column} allObjects={allObjects} sessionKey={frame.key} {...callbacks} />
       )}
     </>
   )
@@ -70,7 +159,11 @@ function Session({
   column,
   allObjects,
   sessionKey,
-}: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string }) {
+  onTrack,
+  onLeave,
+  returnTo,
+  appName,
+}: Props & { target: TargetRef; object: TargetObject; column: TargetColumn; sessionKey: string } & SessionCallbacks) {
   // Step and relation requests carry no project, so every request of this session names it.
   const client = useMemo(() => bindProject(unboundClient, target.project), [unboundClient, target.project])
   const [nav, dispatch] = useReducer(navigationReducer, initialNavigation)
@@ -127,12 +220,55 @@ function Session({
 
   const selected = list.status === 'success' ? list.data.find((c) => c.step_id === nav.selectedStepId) : undefined
   const canNext = Boolean(selected?.has_more_upstream)
+
+  // Where the cards of this level continue in other projects.
+  const choices = useMemo(() => (list.status === 'success' ? list.data : []), [list])
+  const continuationLookup = useAsync(
+    choices.length
+      ? async (signal) => {
+          const entries = await Promise.all(
+            choices.map(
+              async (c) =>
+                [
+                  `${c.source_object_name}.${c.source_column_name}`,
+                  await client.continuations(target.project, c.source_object_name, c.source_column_name, signal),
+                ] as const,
+            ),
+          )
+          return new Map(entries)
+        }
+      : null,
+    // The key turns over when the list arrives; useAsync only re-runs on a key change.
+    `${sessionKey}:cont:${parentKey}:${list.status === 'success' ? 'ready' : 'wait'}`,
+  )
+  const continuations = continuationLookup.status === 'success' ? continuationLookup.data : undefined
+
+  // Continuations for the ultimate sources panel.
+  const sourceList = sources.status === 'success' ? sources.data : []
+  const sourceContinuationLookup = useAsync(
+    sourceList.length
+      ? async (signal) => {
+          const entries = await Promise.all(
+            sourceList.map(
+              async (s) =>
+                [`${s.object_name}.${s.column_name}`, await client.continuations(target.project, s.object_name, s.column_name, signal)] as const,
+            ),
+          )
+          return new Map(entries)
+        }
+      : null,
+    `${sessionKey}:srccont:${activeId ?? 'all'}:${sources.status === 'success' ? 'ready' : 'wait'}`,
+  )
+  const sourceContinuations = sourceContinuationLookup.status === 'success' ? sourceContinuationLookup.data : undefined
   const endpointOf = (c: { source_object_name: string; source_column_name: string }) => `${c.source_object_name}.${c.source_column_name}`
   const targetLabel = `${object.object_name}.${column.column_name}`
   const endpoint = parent ? endpointOf(parent) : targetLabel
   const backLabel = depth === 0 ? null : depth === 1 ? targetLabel : endpointOf(nav.path[depth - 2])
   const allTerminal = list.status === 'success' && list.data.length > 0 && list.data.every((c) => !c.has_more_upstream)
-  const goBack = useCallback(() => dispatch({ type: 'back' }), [])
+  const goBack = useCallback(() => {
+    if (depth === 0) onLeave?.()
+    else dispatch({ type: 'back' })
+  }, [depth, onLeave])
   const goNext = () => selected && canNext && dispatch({ type: 'next', choice: selected })
 
   // The ultimate source itself is not a step of the path: it has its own panel.
@@ -175,23 +311,24 @@ function Session({
 
   return (
     <div className="workspace" role="region" aria-label="Lineage session">
-      <TargetPanel project={target.project} object={object} allObjects={allObjects} column={column} />
+      <TargetPanel project={target.project} appName={appName} object={object} allObjects={allObjects} column={column} />
 
       <section className="panel choices-panel" aria-label="Upstream choices">
         <div className="walk-bar">
           <div className="panel-head">
             <h2 className="panel-title">Where does this come from?</h2>
+            <span className="app-badge">{appName ?? target.project}</span>
             <span className="hop-badge">{stepText}</span>
           </div>
           <p className="walk-instruction" aria-live="polite">
             {instruction}
           </p>
           <div className="walk-controls">
-            <button type="button" className="walk-btn" onClick={goBack} disabled={depth === 0}>
+            <button type="button" className="walk-btn" onClick={goBack} disabled={depth === 0 && !onLeave}>
               <span className="walk-btn-main">
                 <span aria-hidden="true">‹</span> Back
               </span>
-              <span className="walk-btn-sub">{backLabel ? `to ${backLabel}` : 'Start of path'}</span>
+              <span className="walk-btn-sub">{backLabel ? `to ${backLabel}` : onLeave ? `to ${returnTo}` : 'Start of path'}</span>
             </button>
             <HopRail path={nav.path} selected={pathSelected} depth={remainingDepth} onJump={(d) => dispatch({ type: 'jump', depth: d })} />
             <button
@@ -229,6 +366,8 @@ function Session({
               selectedStepId={nav.selectedStepId}
               detailStepId={detailStepId}
               atRoot={depth === 0}
+              continuations={continuations}
+              onTrack={onTrack}
               onSelect={(stepId) => dispatch({ type: 'select', stepId })}
               onDetails={(stepId, trigger) => {
                 detailTrigger.current = trigger
@@ -244,7 +383,7 @@ function Session({
         <h2 className="panel-title">Ultimate sources</h2>
         {sources.status === 'loading' && <Loading text="Loading sources…" />}
         {sources.status === 'error' && list.status !== 'error' && <Failure error={sources.error} onRetry={sources.reload} />}
-        {sources.status === 'success' && <SourceList sources={sources.data} />}
+        {sources.status === 'success' && <SourceList sources={sources.data} continuations={sourceContinuations} onTrack={onTrack} />}
       </section>
 
       {detailStepId && (

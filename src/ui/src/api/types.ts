@@ -4,6 +4,10 @@ export interface Project {
   /** Only present (false) when the project's database exists but cannot be used yet. */
   ready?: boolean
   problem?: string
+  /** Only present (false) when the project is reachable only through continuation. */
+  startable?: boolean
+  /** Application name shown instead of the project code, when configured. */
+  application?: string
 }
 
 export interface BusinessProcess {
@@ -64,6 +68,13 @@ export interface TerminalSource {
   condition: string | null
   result_expression: string | null
   leaf_relation_types: string[]
+}
+
+export interface Continuation {
+  /** Project whose database tracks this endpoint as a target column. */
+  project: string
+  object_id: string
+  column_id: string
 }
 
 export interface TargetRef {
