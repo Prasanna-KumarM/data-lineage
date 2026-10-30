@@ -116,3 +116,55 @@ def test_source_filter_and_missing_view(tmp_path):
     assert stats["loaders"] == 0 and stats["views_missing"] == 1
     assert conn.execute("SELECT COUNT(*) FROM extraction_issue WHERE reason_code='VIEW_MISSING'").fetchone()[0] == 1
     conn.close()
+
+
+def _walk(conn, target, column):
+    from lineage_api.target_catalog import target_column_pairs
+
+    cols = {c["column_name"]: c for c in list_target_columns(conn, "FPL", target["object_id"])}
+    pairs = target_column_pairs(conn, "FPL", target["object_id"], cols[column]["column_id"])
+    out = []
+    for bp_id, root_obj, root_col in pairs:
+        out.extend(get_root_choices(conn, "FPL", root_obj, root_col, bp_id))
+    return out
+
+
+def test_zone_loaders_merge_into_one_logical_target(tmp_path):
+    out = tmp_path / "FPL" / "lineage.db"
+    build(ROOT / "tests" / "fixtures" / "fpl_zones", out)
+    conn = sqlite3.connect(out)
+    conn.row_factory = sqlite3.Row
+    targets = target_definitions(conn, "FPL")
+    assert len(targets) == 1
+    target = targets[0]
+    assert target["object_name"] == "AR_ZONE_EVENTS"
+    assert sorted(p["business_process_name"] for p in target["business_processes"]) == [
+        "ZONE_AMER", "ZONE_APAC", "ZONE_ASIA", "ZONE_EMEA",
+    ]
+    # Hop 1 offers one card per zone view, each carrying its own Business Process.
+    roots = _walk(conn, target, "C1")
+    assert sorted((r["source_object_name"], r["business_process_name"]) for r in roots) == [
+        ("FPL_V_ZONE_AMER", "ZONE_AMER"),
+        ("FPL_V_ZONE_APAC", "ZONE_APAC"),
+        ("FPL_V_ZONE_ASIA", "ZONE_ASIA"),
+        ("FPL_V_ZONE_EMEA", "ZONE_EMEA"),
+    ]
+    for r in roots:
+        below = get_upstream_choices(conn, r["step_id"])
+        zone = r["business_process_name"].split("_")[1]
+        assert [(b["source_object_name"], b["has_more_upstream"]) for b in below] == [(f"ZONE_{zone}_EVENTS", False)]
+    conn.close()
+
+
+def test_union_view_maps_each_branch(tmp_path):
+    out = tmp_path / "FPL" / "lineage.db"
+    stats = build(ROOT / "tests" / "fixtures" / "fpl_union", out)
+    conn = sqlite3.connect(out)
+    conn.row_factory = sqlite3.Row
+    target = target_definitions(conn, "FPL")[0]
+    (root,) = _walk(conn, target, "C1")
+    below = get_upstream_choices(conn, root["step_id"])
+    assert sorted(b["source_object_name"] for b in below) == ["UNION_A_EVENTS", "UNION_B_EVENTS"]
+    assert stats["issues"] >= 1
+    assert conn.execute("SELECT COUNT(*) FROM extraction_issue WHERE message LIKE '%UNION%'").fetchone()[0] == 1
+    conn.close()

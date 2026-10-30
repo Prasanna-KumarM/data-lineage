@@ -60,7 +60,7 @@ class Db:
 
     def mapping(self, bp, component, rtype, src, dst, hop, path_id, chain):
         """One relation + one lineage step. src/dst: (object_name, scope, column)."""
-        rel = _id("MAP", bp, dst[2], src[2], str(hop))
+        rel = _id("MAP", bp, dst[2], src[0], src[2], str(hop))
         s_obj, s_col = self.object(src[0], src[1]), self.column(*src[:2], src[2], False)
         d_obj, d_col = self.object(dst[0], dst[1]), self.column(*dst[:2], dst[2], True)
         self.conn.execute(
@@ -118,9 +118,16 @@ def build(baseline: Path, output: Path, source_filter: str | None = None) -> dic
     db.object("CONSTANT", "CONSTANT", "CONSTANT")
 
     stats = {"loaders": 0, "relations": 0, "views_missing": 0}
+    used_bp: set[str] = set()
     for row in loader_rows:
         view = views.get(row.portal_view.upper())
-        bp_name = row.delivery_set or f"{row.par_source}_{row.par_table}"
+        # Zone-wise loaders share the PAR table; each still needs a unique Business Process name.
+        base_name = row.delivery_set or f"{row.par_source}_{row.portal_view}"
+        bp_name, suffix = base_name, 2
+        while bp_name in used_bp:
+            bp_name = f"{base_name}_{suffix}"
+            suffix += 1
+        used_bp.add(bp_name)
         bp = (_id("BPR", PROJECT, bp_name), bp_name)
         conn.execute("INSERT INTO business_process VALUES (?,?,?,?,?)", (bp[0], PROJECT, bp[1], "1", None))
         loader_cmp = (_id("CMP", bp[0], "loader"), "PAR portal loader", "PortalLoader")
@@ -172,11 +179,19 @@ def build(baseline: Path, output: Path, source_filter: str | None = None) -> dic
                        (view.name, "PAR", col), (row.par_table, "PAR", col),
                        1, path, f"{row.par_table}.{col} <- {view.name}.{col}")
             if item.kind == "column":
-                src_scope = "FPL"
-                db.mapping(bp, view_cmp, "EXPLICIT_INATTR",
-                           (view.from_table, src_scope, item.source_column), (view.name, "PAR", col),
-                           2, path, f"{row.par_table}.{col} <- {view.name}.{col} <- {view.from_table}.{item.source_column}")
-                db.column(view.from_table, src_scope, item.source_column, True)
+                # One hop-2 mapping per UNION branch; normally just the view's own table.
+                for table, _link, branch_items in [(view.from_table, view.dblink, view.items), *view.extra_sources]:
+                    branch_item = next((b for b in branch_items if b.view_column == col), None)
+                    if branch_item is None:
+                        continue
+                    if branch_item.kind != "column":
+                        if branch_item.kind == "expression":
+                            db.issue("EXPRESSION_NOT_TRACED", f"{view.name}.{col} in {table}: {branch_item.text}", view.locator, bp[0])
+                        continue
+                    db.mapping(bp, view_cmp, "EXPLICIT_INATTR",
+                               (table, "FPL", branch_item.source_column), (view.name, "PAR", col),
+                               2, path, f"{row.par_table}.{col} <- {view.name}.{col} <- {table}.{branch_item.source_column}")
+                    db.column(table, "FPL", branch_item.source_column, True)
             elif item.kind == "constant":
                 db.mapping(bp, view_cmp, "CONSTANT_ASSIGNMENT",
                            ("CONSTANT", "CONSTANT", item.text), (view.name, "PAR", col),

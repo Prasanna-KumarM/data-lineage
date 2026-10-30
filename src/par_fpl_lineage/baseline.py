@@ -35,6 +35,8 @@ class ViewDef:
     items: list[ViewItem]
     locator: str
     issues: list[str] = field(default_factory=list)
+    """Additional UNION branches: (from_table, dblink, items in view-column order)."""
+    extra_sources: list[tuple[str, str | None, list[ViewItem]]] = field(default_factory=list)
 
 
 def _split_values(text: str) -> list[str | None]:
@@ -149,7 +151,42 @@ def parse_view(text: str, locator: str) -> ViewDef | None:
             continue
         items.append(ViewItem("expression", view_col or (m.group(2) if m else item), text=item))
         issues.append(f"select item not a plain column/constant/function: {item[:80]}")
-    return ViewDef(name=name.upper(), from_table=from_table.split(".")[-1].upper(), dblink=(dblink or "").lstrip("@") or None, items=items, locator=locator, issues=issues)
+    view = ViewDef(name=name.upper(), from_table=from_table.split(".")[-1].upper(), dblink=(dblink or "").lstrip("@") or None, items=items, locator=locator, issues=issues)
+    # Additional UNION [ALL] branches map positionally to the same view columns.
+    for branch in re.finditer(
+        r"union\s+(?:all\s+)?(?:select\s+)?(.*?)\s+from\s+([\w.]+)(@[\w.]+)?", tail or "", re.IGNORECASE | re.DOTALL
+    ):
+        view.extra_sources.append(
+            (branch.group(2).split(".")[-1].upper(), (branch.group(3) or "").lstrip("@") or None, _classify_items(_split_select_list(branch.group(1)), view_cols))
+        )
+    if view.extra_sources:
+        view.issues.append(f"view UNIONs {len(view.extra_sources) + 1} tables; each branch is mapped separately")
+    return view
+
+
+def _classify_items(raw_items: list[str], view_cols: list[str]) -> list[ViewItem]:
+    items: list[ViewItem] = []
+    for index, raw in enumerate(raw_items):
+        view_col = view_cols[index] if index < len(view_cols) else None
+        item = raw.strip()
+        m = _CONST_RE.match(item)
+        if m:
+            items.append(ViewItem("constant", view_col or m.group(2) or m.group(1), text=m.group(1)))
+            continue
+        m = _FUNC_RE.match(item)
+        if m:
+            items.append(ViewItem("function", view_col or m.group(2) or m.group(1), text=m.group(1)))
+            continue
+        m = _PLAIN_COL_RE.match(item)
+        if m:
+            items.append(ViewItem("column", view_col or m.group(1), source_column=m.group(1)))
+            continue
+        m = _ALIAS_RE.match(item)
+        if m and _PLAIN_COL_RE.match(m.group(1).strip()):
+            items.append(ViewItem("column", view_col or m.group(2), source_column=m.group(1).strip()))
+            continue
+        items.append(ViewItem("expression", view_col or (m.group(2) if m else item), text=item))
+    return items
 
 
 def find_views(baseline: Path) -> dict[str, ViewDef]:
