@@ -26,6 +26,12 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function Body({ detail, developer }: { detail: StepDetail; developer: boolean }) {
   const hasExpression = Boolean(detail.expression_id || detail.driving_expression || detail.result_expression)
   const reason = detail.confidence.reason ?? detail.confidence.reason_code
+  // A merged path has several components; name them all, not just the representative one.
+  const contributors = detail.contributors ?? []
+  const componentText =
+    contributors.length > 1
+      ? contributors.map((c) => c.component_name ?? 'No component').join(', ')
+      : detail.component.component_name ?? '—'
   return (
     <>
       <section className="drawer-section" aria-label="Mapping">
@@ -39,7 +45,7 @@ function Body({ detail, developer }: { detail: StepDetail; developer: boolean })
           <RelationBadge type={detail.relation_type} />
         </p>
         <dl className="facts">
-          <Row label="Component">{detail.component.component_name ?? '—'}</Row>
+          <Row label="Component">{componentText}</Row>
           <Row label="Business process">{detail.business_process.business_process_name ?? '—'}</Row>
           {detail.traversal_path && <Row label="Traversal path">{detail.traversal_path}</Row>}
         </dl>

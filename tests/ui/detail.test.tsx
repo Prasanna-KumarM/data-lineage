@@ -106,6 +106,10 @@ describeReal('relation detail drawer on the real SP_CLO lineage', () => {
   it('lists the contributors of a merged path', async () => {
     const app = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
     const drawer = await openDetails(app, cardsIn(app.choices)[0])
+    // The Mapping section at the top names both components, not just one.
+    const mapping = await within(drawer).findByRole('region', { name: 'Mapping' })
+    expect(textOf(mapping)).toContain('CM_CLO_OFR_COMM Mapping')
+    expect(textOf(mapping)).toContain('CM_CLO_OFR_Fair Value Mapping')
     const section = await within(drawer).findByRole('region', { name: 'Contributing mappings' })
     expect(textOf(section)).toContain('populated by 2 mappings')
     expect(textOf(section)).toContain('CM_CLO_OFR_COMM Mapping')
