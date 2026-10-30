@@ -63,7 +63,12 @@ class ProjectRegistry:
                 del self._cache[stale]
             for path in files:
                 st = path.stat()
-                stamp = (st.st_mtime_ns, st.st_size)
+                # Marker files (application, continuation_only) change the entry too.
+                markers = tuple(
+                    (m.stat().st_mtime_ns, m.stat().st_size) if m.is_file() else None
+                    for m in (path.parent / "application", path.parent / "continuation_only")
+                )
+                stamp = (st.st_mtime_ns, st.st_size, markers)
                 cached = self._cache.get(path)
                 if cached is None or cached[0] != stamp:
                     cached = (stamp, self._read(path))
