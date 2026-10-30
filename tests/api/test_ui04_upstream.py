@@ -236,6 +236,7 @@ def test_merged_step_detail_lists_its_contributors(sp_clo):
 
     obj, col = _target(sp_clo, "CM_PAR_LOAN_TRADES", "FDK_MT")
     (root,) = get_root_choices(sp_clo, "SP_CLO", obj, col)
+    assert root["contributor_components"] == ["CM_CLO_OFR_COMM Mapping", "CM_CLO_OFR_Fair Value Mapping"]
     detail = get_step_detail(sp_clo, root["step_id"])
     assert [(c["component_name"], c["relation_type"]) for c in detail["contributors"]] == [
         ("CM_CLO_OFR_COMM Mapping", "EXPLICIT_INATTR"),

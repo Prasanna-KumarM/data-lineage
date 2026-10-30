@@ -16,6 +16,8 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     // The two mappings to e_fdk_mt are merged into one card with two contributors.
     expect(root).toHaveLength(1)
     expect(root[0].textContent).toContain('2 mappings')
+    expect(root[0].textContent).toContain('CM_CLO_OFR_COMM Mapping')
+    expect(root[0].textContent).toContain('CM_CLO_OFR_Fair Value Mapping')
     const chain = root[0]
     await user.click(chain)
     expect(app.next().disabled).toBe(false)

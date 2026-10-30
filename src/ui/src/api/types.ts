@@ -58,6 +58,8 @@ export interface Choice {
   upstream_choice_count: number
   /** Mappings sharing this path; present from the contributors table. */
   contributor_count?: number
+  /** Component names of those mappings, sorted. */
+  contributor_components?: string[]
 }
 
 export interface TerminalSource {

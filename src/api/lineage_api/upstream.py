@@ -59,6 +59,34 @@ def _to_choice(row: sqlite3.Row) -> dict[str, Any]:
     return choice
 
 
+def _attach_components(conn: sqlite3.Connection, choices: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Names of every component contributing to each choice, sorted; only for merged paths."""
+    if not _has_contributors(conn):
+        return choices
+    ids = [c["step_id"] for c in choices if c["contributor_count"] > 1]
+    if not ids:
+        return choices
+    marks = ",".join("?" for _ in ids)
+    names: dict[str, list[str]] = {}
+    for row in conn.execute(
+        f"""SELECT bc.step_id, co.component_name
+            FROM business_lineage_step_contributor bc
+            JOIN column_relation r ON r.relation_id = bc.relation_id
+            LEFT JOIN component co ON co.component_id = r.component_id
+            WHERE bc.step_id IN ({marks})
+            ORDER BY co.component_name""",
+        ids,
+    ):
+        bucket = names.setdefault(row["step_id"], [])
+        name = row["component_name"] or "No component"
+        if name not in bucket:
+            bucket.append(name)
+    for choice in choices:
+        if choice["step_id"] in names:
+            choice["contributor_components"] = names[choice["step_id"]]
+    return choices
+
+
 def get_root_choices(
     conn: sqlite3.Connection,
     project: str,
@@ -81,7 +109,7 @@ def get_root_choices(
         + _ORDER,
         params,
     ).fetchall()
-    return [_to_choice(r) for r in rows]
+    return _attach_components(conn, [_to_choice(r) for r in rows])
 
 
 def get_upstream_choices(conn: sqlite3.Connection, step_id: str) -> list[dict[str, Any]]:
@@ -104,4 +132,4 @@ def get_upstream_choices(conn: sqlite3.Connection, step_id: str) -> list[dict[st
         + _ORDER,
         (step_id,),
     ).fetchall()
-    return [_to_choice(r) for r in rows]
+    return _attach_components(conn, [_to_choice(r) for r in rows])
