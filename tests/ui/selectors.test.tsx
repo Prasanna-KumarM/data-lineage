@@ -55,7 +55,7 @@ describeReal('selector workflow on the real SP_CLO lineage', () => {
     await waitFor(() => expect(optionTexts(select('Target Column')).length).toBeGreaterThan(1))
     await user.selectOptions(select('Target Column'), 'FDK_MT')
     const panel = await screen.findByRole('region', { name: 'Lineage session' })
-    expect(await within(panel).findAllByRole('button', { name: /^CM_CLO_OFFER\.e_fdk_mt/ })).toHaveLength(2)
+    expect(await within(panel).findAllByRole('button', { name: /^CM_CLO_OFFER\.e_fdk_mt/ })).toHaveLength(1)
     const sources = within(panel).getByRole('region', { name: 'Ultimate sources' })
     await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
   })

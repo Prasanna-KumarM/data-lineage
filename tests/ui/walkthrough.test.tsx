@@ -13,8 +13,10 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     expect(app.next().disabled).toBe(true)
     expect(hopContext(choices)).toContain('Step 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT')
     const root = cardsIn(choices)
-    expect(root).toHaveLength(2)
-    const chain = root.find((c) => c.textContent?.includes('1 upstream choice'))!
+    // The two mappings to e_fdk_mt are merged into one card with two contributors.
+    expect(root).toHaveLength(1)
+    expect(root[0].textContent).toContain('2 mappings')
+    const chain = root[0]
     await user.click(chain)
     expect(app.next().disabled).toBe(false)
     await user.click(app.next())
@@ -62,29 +64,25 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
 
     expect(hopContext(choices)).toContain('Step 1')
     const restored = cardsIn(choices)
-    expect(restored).toHaveLength(2)
-    expect(restored.map(pressed)).toEqual([true, false])
+    expect(restored).toHaveLength(1)
+    expect(restored.map(pressed)).toEqual([true])
     await waitFor(() => expect(sourceNames(sources)).toHaveLength(3))
     expect(app.back().disabled).toBe(true)
     expect(target.textContent).toBe(targetBefore)
   })
 
-  it('gives both mappings that reach one endpoint the same upstream (CONTRACT_ID)', async () => {
-    const seen: string[][] = []
-    for (const index of [0, 1]) {
-      const app = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'CONTRACT_ID')
-      const cards = cardsIn(app.choices)
-      expect(cards).toHaveLength(2)
-      expect(cards.map((c) => c.textContent?.includes('3 upstream choices'))).toEqual([true, true])
-      expect(new Set(cards.map((c) => c.textContent?.match(/CM_CLO_OFR_[\w ]+Mapping/)?.[0])).size).toBe(2)
-      await app.user.click(cards[index])
-      await advance(app, 2)
-      await waitFor(() => expect(cardsIn(app.choices)).toHaveLength(3))
-      seen.push(cardsIn(app.choices).map((c) => c.textContent ?? '').sort())
-      document.body.innerHTML = ''
-    }
-    expect(seen[0]).toEqual(seen[1])
-    expect(seen[0].every((t) => t.includes('CM_CLO_OFFER.OFR_ID'))).toBe(true)
+  it('merges the mappings that reach one endpoint, keeping their contributors (CONTRACT_ID)', async () => {
+    const app = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'CONTRACT_ID')
+    const cards = cardsIn(app.choices)
+    // Two mappings (COMM and Fair Value) merge into one card.
+    expect(cards).toHaveLength(1)
+    expect(cards[0].textContent).toContain('2 mappings')
+    await app.user.click(cards[0])
+    await advance(app, 1)
+    // The three rule calls below merge into one card as well.
+    await waitFor(() => expect(cardsIn(app.choices)).toHaveLength(1))
+    expect(cardsIn(app.choices)[0].textContent).toContain('CM_CLO_OFFER.OFR_ID')
+    expect(cardsIn(app.choices)[0].textContent).toContain('3 mappings')
   })
 
   it('does not allow Next on a terminal choice', async () => {

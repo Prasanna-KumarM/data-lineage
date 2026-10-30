@@ -136,7 +136,7 @@ describeReal('table summary on the real SP_CLO lineage', () => {
     expect(lines).toHaveLength(3)
     for (const line of lines) {
       expect(line.querySelector('.hops-badge')?.textContent).toBe('4 hops')
-      expect(textOf(line)).toContain('2 routes')
+      expect(textOf(line)).not.toContain('routes')
     }
     expect(textOf(lines[0].querySelector('.route'))).toBe(
       'FDK_MT ← CM_CLO_OFFER.e_fdk_mt ← FSD_FO_DESKS.FDK_MT ← CM_CLO_OFFER.e_bok_code ← CM_CLO_OFFER.OFR_HTCS_BOOK_CODE',
@@ -274,7 +274,7 @@ describeReal('moving between the summary and the walkthrough', () => {
     await waitFor(() => expect(textOf(target)).toContain('FDK_MT'))
     expect(textOf(target)).toContain('CM_PAR_LOAN_TRADES')
     const choices = screen.getByRole('region', { name: 'Upstream choices' })
-    await waitFor(() => expect(within(within(choices).getByRole('list', { name: 'Upstream mappings' })).getAllByRole('listitem')).toHaveLength(2))
+    await waitFor(() => expect(within(within(choices).getByRole('list', { name: 'Upstream mappings' })).getAllByRole('listitem')).toHaveLength(1))
   })
 
   it('goes back to the same table from the walkthrough', async () => {

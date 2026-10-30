@@ -110,13 +110,9 @@ def test_shared_upstream_is_one_node_with_several_incoming_edges(sp_clo):
     assert col["source_count"] == 3
     middles = [n for n in g["nodes"] if n["role"] == "intermediate"]
     assert middles
-    # 3 sources x 2 routes each, but the shared middle steps are drawn once
-    assert len(g["edges"]) < 3 * 2 * 4
+    # The 3 sources x 2 mappings x 4 hops collapse to one edge per merged step.
+    assert len(g["edges"]) == 6
     assert g["totals"]["hops_max"] == 4
-    incoming = {}
-    for e in g["edges"]:
-        incoming[e["to_node"]] = incoming.get(e["to_node"], 0) + 1
-    assert any(n > 1 for n in incoming.values())
 
 
 def test_case_branches_to_one_constant_are_separate_source_nodes(sp_clo):

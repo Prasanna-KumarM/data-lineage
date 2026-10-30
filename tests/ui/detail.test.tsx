@@ -103,6 +103,15 @@ describeReal('relation detail drawer on the real SP_CLO lineage', () => {
     expect(textOf(expression)).toContain('Value · result')
   })
 
+  it('lists the contributors of a merged path', async () => {
+    const app = await openApp(realClient(), 'CM_PAR_LOAN_TRADES', 'FDK_MT')
+    const drawer = await openDetails(app, cardsIn(app.choices)[0])
+    const section = await within(drawer).findByRole('region', { name: 'Contributing mappings' })
+    expect(textOf(section)).toContain('populated by 2 mappings')
+    expect(textOf(section)).toContain('CM_CLO_OFR_COMM Mapping')
+    expect(textOf(section)).toContain('CM_CLO_OFR_Fair Value Mapping')
+  })
+
   it('lists the operands of an expression', async () => {
     const app = await openPdtCodeBranches()
     const drawer = await openDetails(app, cardsIn(app.choices)[0])

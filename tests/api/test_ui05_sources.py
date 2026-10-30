@@ -136,8 +136,8 @@ def test_sp_clo_fdk_mt_branch_filtering(sp_clo):
         "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
     ]
     roots = get_root_choices(sp_clo, "SP_CLO", obj, col)
-    # Both mappings reach e_fdk_mt, so both lead to the same three terminals.
-    assert len(roots) == 2
+    # Both mappings reach e_fdk_mt, merged into one card with the same three terminals.
+    assert len(roots) == 1
     for root in roots:
         assert _names(sources_for_step(resolved, root["step_id"])) == _names(sources_for_step(resolved))
     chain = roots[0]

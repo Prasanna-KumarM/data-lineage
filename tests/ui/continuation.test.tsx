@@ -82,8 +82,7 @@ describeReal('continuing the walkthrough in another project', () => {
     const walk = await screen.findByRole('region', { name: 'Graph walkthrough' })
     await within(walk).findAllByTestId('walk-node-current')
 
-    // Hop 1 splits into two mappings to the same node; pick the first, then step into it.
-    await user.click((await within(walk).findAllByRole('button', { name: /e_fdk_mt/ }))[0])
+    // Hop 1 is a single merged mapping; step into it.
     await user.click(within(walk).getByRole('button', { name: /Next/ }))
     expect(within(walk).getByText('Step 2')).toBeTruthy()
 

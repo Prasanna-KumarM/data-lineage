@@ -103,6 +103,42 @@ def get_relation_detail(conn: sqlite3.Connection, relation_id: str) -> dict[str,
     }
 
 
+_CONTRIBUTORS_SQL = """
+    SELECT r.relation_id, r.relation_type, r.driving_expression, r.result_expression,
+           c.component_id, c.component_name, c.component_type, bp.business_process_name
+    FROM business_lineage_step_contributor bc
+    JOIN column_relation r ON r.relation_id = bc.relation_id
+    LEFT JOIN component c ON c.component_id = r.component_id
+    LEFT JOIN business_process bp ON bp.business_process_id = c.business_process_id
+    WHERE bc.step_id = ?
+    ORDER BY c.component_name, r.relation_id
+"""
+
+
+def _contributors(conn: sqlite3.Connection, step_id: str, relation_id: str) -> list[dict[str, Any]]:
+    """Every mapping populating this step; the step's own relation when the table is absent."""
+    has_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='business_lineage_step_contributor'"
+    ).fetchone()
+    rows = (
+        [dict(r) for r in conn.execute(_CONTRIBUTORS_SQL, (step_id,))]
+        if has_table
+        else []
+    )
+    if rows:
+        return rows
+    own = conn.execute(
+        """SELECT r.relation_id, r.relation_type, r.driving_expression, r.result_expression,
+                  c.component_id, c.component_name, c.component_type, bp.business_process_name
+           FROM column_relation r
+           LEFT JOIN component c ON c.component_id = r.component_id
+           LEFT JOIN business_process bp ON bp.business_process_id = c.business_process_id
+           WHERE r.relation_id = ?""",
+        (relation_id,),
+    ).fetchone()
+    return [dict(own)] if own else []
+
+
 def get_step_detail(conn: sqlite3.Connection, step_id: str) -> dict[str, Any]:
     """Relation detail plus the step-level context (step, path position, Business Process)."""
     step = conn.execute(
@@ -124,4 +160,5 @@ def get_step_detail(conn: sqlite3.Connection, step_id: str) -> dict[str, Any]:
         "business_process_id": step["business_process_id"],
         "business_process_name": step["business_process_name"],
     }
+    detail["contributors"] = _contributors(conn, step_id, step["relation_id"])
     return detail

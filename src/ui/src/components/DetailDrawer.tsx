@@ -93,6 +93,25 @@ function Body({ detail, developer }: { detail: StepDetail; developer: boolean })
         </section>
       )}
 
+      {(detail.contributors?.length ?? 0) > 1 && (
+        <section className="drawer-section" aria-label="Contributing mappings">
+          <h3>Contributing mappings</h3>
+          <p className="card-meta">
+            This path is populated by {detail.contributors!.length} mappings:
+          </p>
+          <ol className="operands">
+            {detail.contributors!.map((c) => (
+              <li key={c.relation_id}>
+                <RelationBadge type={c.relation_type} /> {c.component_name ?? 'No component'}
+                {c.business_process_name && <span className="card-meta"> · {c.business_process_name}</span>}
+                {c.driving_expression && <div className="card-meta">when {c.driving_expression}</div>}
+                {c.result_expression && <div className="card-meta">Value {c.result_expression}</div>}
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
       {developer && (
         <section className="drawer-section developer" aria-label="Developer details">
           <h3>Developer details</h3>

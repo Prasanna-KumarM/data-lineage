@@ -25,7 +25,7 @@ describeReal('api client against the real lineage API', () => {
     const target = { project: 'SP_CLO', objectId: trades.object_id, columnId: column.column_id }
 
     const upstream = await client.rootChoices(target)
-    expect(upstream.choices).toHaveLength(2)
+    expect(upstream.choices).toHaveLength(1)
     const sources = await client.ultimateSources(target)
     expect(sources.terminal_sources.map((s) => s.column_name)).toEqual([
       'OFR_HTCS_BOOK_CODE',

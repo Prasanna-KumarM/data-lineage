@@ -62,6 +62,7 @@ class ChoiceOut(BaseModel):
     is_terminal: bool
     has_more_upstream: bool
     upstream_choice_count: int
+    contributor_count: int = 1
 
 
 class UpstreamOut(BaseModel):
@@ -155,11 +156,24 @@ class RelationDetailOut(BaseModel):
     step_ids: list[str]
 
 
+class ContributorOut(BaseModel):
+    """One mapping that populates a shared step."""
+    relation_id: str
+    relation_type: str
+    driving_expression: Optional[str] = None
+    result_expression: Optional[str] = None
+    component_id: Optional[str] = None
+    component_name: Optional[str] = None
+    component_type: Optional[str] = None
+    business_process_name: Optional[str] = None
+
+
 class StepDetailOut(RelationDetailOut):
     step_id: str
     path_id: str
     lineage_level: int
     hop_count: Optional[int] = None
+    contributors: list[ContributorOut] = []
 
 
 class ErrorBody(BaseModel):

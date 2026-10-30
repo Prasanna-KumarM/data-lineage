@@ -95,11 +95,12 @@ def build_column_graph(
             node["hops_min"] = min(node["hops_min"], hop)
             node["hops_max"] = max(node["hops_max"], hop)
 
-        key = (from_id, to_id, s["relation_id"])
+        # Contributor mappings share one edge: endpoints, kind and expressions are identical.
+        key = (from_id, to_id, s["relation_type"], s["driving_expression"], s["result_expression"])
         edge = edges.get(key)
         if edge is None:
             edges[key] = {
-                "edge_id": f"{from_id}>{to_id}#{s['relation_id']}",
+                "edge_id": f"{from_id}>{to_id}#{len(edges)}",
                 "from_node": from_id,
                 "to_node": to_id,
                 "relation_id": s["relation_id"],

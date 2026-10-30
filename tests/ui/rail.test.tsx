@@ -105,7 +105,7 @@ describeReal('hop progress rail on the real SP_CLO lineage', () => {
     await user.click(within(rail).getByRole('button', { name: /^Hop 1:/ }))
     await waitFor(() => expect(hopContext(choices)).toContain('Step 1 · upstream of CM_PAR_LOAN_TRADES.FDK_MT'))
     const restored = cardsIn(choices)
-    expect(restored).toHaveLength(2)
+    expect(restored).toHaveLength(1)
     expect(pressed(restored.find((c) => c.textContent?.includes('1 upstream choice'))!)).toBe(true)
     await waitFor(() => expect(railGlyphs(rail)).toEqual([CURRENT, HOLLOW, HOLLOW]))
     expect(crumbs(nav)).toEqual(['CM_PAR_LOAN_TRADES.FDK_MT', 'CM_CLO_OFFER.e_fdk_mt'])

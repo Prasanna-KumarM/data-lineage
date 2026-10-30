@@ -93,7 +93,8 @@ def test_ultimate_sources_full_and_filtered_by_step(client, sp_clo):
         "OFR_HTCS_BOOK_CODE", "OFR_HTC_BOOK_CODE", "OFR_HTS_BOOK_CODE",
     ]
     roots = client.get("/lineage/upstream", params=t).json()["choices"]
-    assert [c["upstream_choice_count"] for c in roots] == [1, 1]
+    assert [c["upstream_choice_count"] for c in roots] == [1]
+    assert roots[0]["contributor_count"] == 2
     for chain in roots:
         filtered = client.get("/lineage/ultimate-sources", params={**t, "step_id": chain["step_id"]}).json()
         assert filtered["step_id"] == chain["step_id"]
