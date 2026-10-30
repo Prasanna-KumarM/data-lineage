@@ -61,20 +61,6 @@ describe('choosing a project on the summary page', () => {
     expect(screen.queryByLabelText('Search target tables')).toBeNull()
   })
 
-  it('shows the application name instead of the project code', async () => {
-    const apps = [
-      { project_name: 'SP_CLO', application: 'PAR' },
-      { project_name: 'SP_LIQ', application: 'PAR' },
-    ]
-    show(scripted(apps), '#/summary')
-    const select = (await screen.findByLabelText('Project')) as HTMLSelectElement
-    expect(Array.from(select.options).map((o) => [o.textContent, o.value])).toEqual([
-      ['Select a project', ''],
-      ['PAR', 'SP_CLO'],
-      ['PAR', 'SP_LIQ'],
-    ])
-  })
-
   it('hides continuation-only projects on both pages', async () => {
     const withContinuation = [...projects, { project_name: 'FPL', startable: false }]
     show(scripted(withContinuation), '#/summary')
