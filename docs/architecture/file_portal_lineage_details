@@ -1,0 +1,73 @@
+af17sq@APM3LH222V992TX p00750-gpcpar-par-db-apt % tree . -d        
+.
+├── azure_resources
+│   ├── iaas
+│   │   └── templates
+│   │       ├── TNS
+│   │       ├── aptitude-upgrade
+│   │       ├── aptitude_upgrade_v24.4
+│   │       ├── archieve-aptitude
+│   │       ├── common_tomcat_tier
+│   │       ├── delete-file
+│   │       ├── oracledb_upgrade
+│   │       ├── par-operating-sys-update
+│   │       ├── par-tc-ords-install
+│   │       ├── par_autocert
+│   │       ├── python-upgrade-3.12
+│   │       ├── sem
+│   │       ├── tomcat_autocert
+│   │       └── tomcat_recreate_a9
+│   └── variables
+├── dpar_o1
+│   ├── bin
+│   │   ├── AOS
+│   │   │   ├── PARFSS
+│   │   │   │   ├── PARFSS_SCRIPTS
+│   │   │   │   └── PARFSS_SQLS
+│   │   │   └── RTFSCRIPTS
+│   │   │       ├── COMPSQL
+│   │   │       └── SCRIPTS
+│   │   └── avro
+│   ├── etc
+│   └── sql
+├── par_owner
+│   ├── apex
+│   └── ins
+│       ├── DB_codebase
+│       │   ├── DML_baseline
+│       │   ├── DML_delta
+│       │   ├── Database_links
+│       │   ├── Drops
+│       │   ├── Functions
+│       │   ├── Jobs
+│       │   ├── Materialized_views
+│       │   ├── Packages
+│       │   ├── Procedures
+│       │   ├── Queue_tables
+│       │   ├── Queues
+│       │   ├── Roles_delta
+│       │   ├── Scheduler_job
+│       │   ├── Sequences_baseline
+│       │   ├── Sequences_delta
+│       │   ├── Tables_baseline
+│       │   ├── Tables_delta
+│       │   ├── Triggers
+│       │   ├── Types
+│       │   └── Views
+│       └── ksh
+├── patch_application
+│   └── inventories
+└── pdbadmin
+    └── ins
+        └── DB_codebase
+            ├── Directories
+            ├── Drops
+            ├── NPA_baseline
+            ├── NPA_delta
+            ├── Procedure
+            ├── Roles_baseline
+            ├── Roles_delta
+            ├── Tablespaces
+            └── Triggers
+
+70 directories
