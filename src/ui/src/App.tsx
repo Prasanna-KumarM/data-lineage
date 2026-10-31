@@ -21,7 +21,7 @@ export default function App({ client: injected }: Props) {
   }, [])
 
   return (
-    <div className="app">
+    <div className={route.name === 'lineage' ? 'app app-lineage' : 'app'}>
       <header className="topbar">
         <h1>Data Lineage</h1>
         <nav aria-label="Pages">
