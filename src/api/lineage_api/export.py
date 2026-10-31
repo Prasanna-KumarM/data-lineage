@@ -100,6 +100,20 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
     _style_sheet(sheet, [26, 24, 36, 14, 12, 12, 40, 40])
 
 
+def _mappings_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
+    """One row per distinct target column / ultimate source combination."""
+    sheet = wb.create_sheet("Mappings")
+    sheet.append(["Target object", "Target column", "Source object", "Source column"])
+    seen: set[tuple[str, str, str, str]] = set()
+    for column in columns:
+        for source in column["sources"]:
+            row = (object_name, column["column_name"], source["object_name"], source["column_name"])
+            if row not in seen:
+                seen.add(row)
+                sheet.append(row)
+    _style_sheet(sheet, [30, 26, 30, 26])
+
+
 def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
     """One row per hop: target column -> hop 1 -> hop 2 -> ... -> ultimate source."""
     sheet = wb.create_sheet("Steps")
@@ -138,6 +152,7 @@ def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
         ("Extracted at", _extraction_timestamp(conn)),
         ("", ""),
         ("Summary sheet", "One row per target column and ultimate source. 'Hops' counts the mappings between them; 'Path variants' counts distinct paths when there is more than one."),
+        ("Mappings sheet", "Distinct target column / ultimate source pairs; one row each, nothing else."),
         ("Steps sheet", "One row per hop of the shortest path from the target column to each ultimate source. 'From' is the column being read; 'To' is what it feeds. When Path variants > 1, only one path is listed."),
         ("", ""),
         ("Mapping kinds", ""),
@@ -158,6 +173,7 @@ def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
 def build_table_workbook(conn: sqlite3.Connection, project: str, object_name: str, summary: dict[str, Any]) -> bytes:
     wb = Workbook()
     _summary_sheet(wb, object_name, summary["columns"])
+    _mappings_sheet(wb, object_name, summary["columns"])
     _steps_sheet(wb, object_name, summary["columns"])
     _legend_sheet(wb, conn, project)
     buffer = io.BytesIO()

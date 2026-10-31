@@ -38,7 +38,17 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     object_id = _target_id(sp_clo_client, "CM_PAR_LOAN_TRADES")
     summary = sp_clo_client.get(f"/targets/{object_id}/summary", params={"project": "SP_CLO"}).json()
     wb = _book(sp_clo_client.get(f"/targets/{object_id}/export.xlsx", params={"project": "SP_CLO"}))
-    assert wb.sheetnames == ["Summary", "Steps", "How to read"]
+    assert wb.sheetnames == ["Summary", "Mappings", "Steps", "How to read"]
+
+    mappings = [[c.value for c in row] for row in wb["Mappings"].iter_rows(min_row=2)]
+    assert [c.value for c in wb["Mappings"][1]] == ["Target object", "Target column", "Source object", "Source column"]
+    assert len(mappings) == len({tuple(r) for r in mappings})
+    assert len(mappings) == sum(len(c["sources"]) for c in summary["columns"] if c["sources"])
+    assert [r for r in mappings if r[1] == "FDK_MT"] == [
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTCS_BOOK_CODE"],
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTC_BOOK_CODE"],
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTS_BOOK_CODE"],
+    ]
 
     sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
