@@ -92,8 +92,8 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
       expect(item.textContent).toContain('Expression')
       expect(item.textContent).toContain('CONSTANT')
     }
-    expect(first.querySelector('.source-condition')?.textContent).toBe('EXPR AEF_EVENT_CODE=="E011"')
-    expect(second.querySelector('.source-condition')?.textContent).toBe('EXPR ELSE')
+    expect(first.querySelector('.expr-line code')?.textContent).toBe('AEF_EVENT_CODE=="E011"')
+    expect(second.querySelector('.expr-line code')?.textContent).toBe('ELSE')
   })
 
   it('shows a constant ultimate source as a constant', async () => {
@@ -106,7 +106,7 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
   it('does not add a condition line to sources without an expression', async () => {
     const { sources } = await open('CM_PAR_LOAN_TRADES', 'FDK_MT')
     await waitFor(() => expect(within(sources).getAllByRole('listitem')).toHaveLength(3))
-    expect(sources.querySelector('.source-condition')).toBeNull()
+    expect(sources.querySelector('.card-expr')).toBeNull()
   })
 
   it('selecting a branch filters the sources but keeps the choices and the target', async () => {

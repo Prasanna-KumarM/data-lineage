@@ -25,8 +25,22 @@ export function SourceList({ sources, continuations, onTrack, onDetails }: Props
                 <RelationBadge key={type} type={type} />
               ))}
             </span>
-            {source.condition && <span className="source-condition">EXPR {source.condition}</span>}
-            {source.result_expression && <span className="card-meta">OUTPUT {source.result_expression}</span>}
+            {(source.condition || source.result_expression) && (
+              <span className="card-expr">
+                {source.condition && (
+                  <span className="expr-line">
+                    <span className="expr-tag when">EXPR</span>
+                    <code>{source.condition}</code>
+                  </span>
+                )}
+                {source.result_expression && (
+                  <span className="expr-line">
+                    <span className="expr-tag value">OUTPUT</span>
+                    <code>{source.result_expression}</code>
+                  </span>
+                )}
+              </span>
+            )}
             {source.object_type && <span className="card-meta">{source.object_type}</span>}
             {source.leaf_step_id && onDetails && (
               <button
