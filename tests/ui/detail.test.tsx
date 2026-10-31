@@ -274,3 +274,16 @@ describe('relation detail drawer with a scripted client', () => {
     expect(document.body.textContent).toContain('SRC.p1')
   })
 })
+
+describeReal('ultimate source chips on the real SP_CLO lineage', () => {
+  it('show the result expression and open the detail drawer', async () => {
+    const app = await openApp(realClient(), 'AR_PAR_LOAN_EVENTS', 'MDE_CODE')
+    const sources = within(app.workspace).getByRole('region', { name: 'Ultimate sources' })
+    await waitFor(() => expect(within(sources).getAllByRole('listitem').length).toBeGreaterThan(0))
+    expect(sources.textContent).toContain('Value "CLO"')
+    const details = within(sources).getAllByRole('button', { name: /^Details for / })[0]
+    await app.user.click(details)
+    const drawer = await screen.findByRole('dialog')
+    await within(drawer).findByRole('region', { name: 'Mapping' })
+  })
+})

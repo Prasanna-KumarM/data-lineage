@@ -390,3 +390,15 @@ describe('summary page with a scripted client', () => {
     expect(window.location.hash).toBe('#/summary/B')
   })
 })
+
+describeReal('ultimate source details on the summary page', () => {
+  it('opens the detail drawer from a source row', async () => {
+    const { user } = await openTable('AR_PAR_LOAN_EVENTS')
+    const row = rowOf('MDE_CODE')
+    const details = within(row).getAllByRole('button', { name: /^Details for / })[0]
+    await user.click(details)
+    const drawer = await screen.findByRole('dialog')
+    expect(drawer.textContent).toContain('Mapping')
+    await user.keyboard('{Escape}')
+  })
+})
