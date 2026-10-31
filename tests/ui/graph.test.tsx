@@ -77,8 +77,8 @@ describeReal('graph view of a column on the real SP_CLO lineage', () => {
     await within(dialog).findAllByTestId('graph-node-target')
     const sources = nodesOf(dialog, 'source')
     expect(sources).toHaveLength(2)
-    expect(sources.map(textOf).join('|')).toContain('when AEF_EVENT_CODE=="E011"')
-    expect(sources.map(textOf).join('|')).toContain('when ELSE')
+    expect(sources.map(textOf).join('|')).toContain('EXPR AEF_EVENT_CODE=="E011"')
+    expect(sources.map(textOf).join('|')).toContain('EXPR ELSE')
     expect(sources.every((s) => textOf(s).includes('Constant'))).toBe(true)
   })
 

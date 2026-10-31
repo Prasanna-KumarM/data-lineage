@@ -77,7 +77,7 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
     """One row per target column and ultimate source: where the value finally comes from."""
     sheet = wb.active
     sheet.title = "Summary"
-    sheet.append(["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "When (condition)", "Value (result)"])
+    sheet.append(["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
         sources = column["sources"] or [None]
         for source in sources:
@@ -103,7 +103,7 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
 def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
     """One row per hop: target column -> hop 1 -> hop 2 -> ... -> ultimate source."""
     sheet = wb.create_sheet("Steps")
-    sheet.append(["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "When (condition)", "Value (result)"])
+    sheet.append(["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
         for source in column["sources"]:
             route = source["route"]

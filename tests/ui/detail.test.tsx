@@ -38,10 +38,10 @@ describeReal('mapping cards on the real SP_CLO lineage', () => {
     const cards = cardsIn(choices)
     expect(cards).toHaveLength(2)
     const [first, second] = cards
-    expect(textOf(first)).toContain('WhenAEF_EVENT_CODE=="E011"')
-    expect(textOf(first)).toContain('Value"OFFER"')
-    expect(textOf(second)).toContain('WhenELSE')
-    expect(textOf(second)).toContain('Value"OFFER"')
+    expect(textOf(first)).toContain('EXPRAEF_EVENT_CODE=="E011"')
+    expect(textOf(first)).toContain('OUTPUT"OFFER"')
+    expect(textOf(second)).toContain('EXPRELSE')
+    expect(textOf(second)).toContain('OUTPUT"OFFER"')
     expect(first.querySelector('.expr-tag.when')).not.toBeNull()
     expect(first.querySelector('.expr-tag.value')).not.toBeNull()
   })
@@ -99,8 +99,8 @@ describeReal('relation detail drawer on the real SP_CLO lineage', () => {
     expect(expression.querySelector('.expr-block.when')?.textContent).toContain('ELSE')
     expect(expression.querySelector('.expr-block.value')?.textContent).toContain('"OFFER"')
     expect(expression.querySelector('.expr-block.when')?.textContent).not.toContain('"OFFER"')
-    expect(textOf(expression)).toContain('Condition · when')
-    expect(textOf(expression)).toContain('Value · result')
+    expect(textOf(expression)).toContain('EXPR')
+    expect(textOf(expression)).toContain('OUTPUT')
   })
 
   it('lists the contributors of a merged path', async () => {
@@ -280,7 +280,7 @@ describeReal('ultimate source chips on the real SP_CLO lineage', () => {
     const app = await openApp(realClient(), 'AR_PAR_LOAN_EVENTS', 'MDE_CODE')
     const sources = within(app.workspace).getByRole('region', { name: 'Ultimate sources' })
     await waitFor(() => expect(within(sources).getAllByRole('listitem').length).toBeGreaterThan(0))
-    expect(sources.textContent).toContain('Value "CLO"')
+    expect(sources.textContent).toContain('OUTPUT "CLO"')
     const details = within(sources).getAllByRole('button', { name: /^Details for / })[0]
     await app.user.click(details)
     const drawer = await screen.findByRole('dialog')

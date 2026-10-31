@@ -92,8 +92,8 @@ describeReal('three-panel layout on the real SP_CLO lineage', () => {
       expect(item.textContent).toContain('Expression')
       expect(item.textContent).toContain('CONSTANT')
     }
-    expect(first.querySelector('.source-condition')?.textContent).toBe('when AEF_EVENT_CODE=="E011"')
-    expect(second.querySelector('.source-condition')?.textContent).toBe('when ELSE')
+    expect(first.querySelector('.source-condition')?.textContent).toBe('EXPR AEF_EVENT_CODE=="E011"')
+    expect(second.querySelector('.source-condition')?.textContent).toBe('EXPR ELSE')
   })
 
   it('shows a constant ultimate source as a constant', async () => {

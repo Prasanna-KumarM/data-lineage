@@ -126,7 +126,7 @@ describeReal('hop-by-hop walkthrough on the real SP_CLO lineage', () => {
     await waitFor(() => expect(cardsIn(choices)).toHaveLength(2))
     await user.click(cardsIn(choices)[1])
     await waitFor(() => expect(sourceNames(sources)).toHaveLength(1))
-    expect(sources.querySelector('.source-condition')?.textContent).toMatch(/^when /)
+    expect(sources.querySelector('.source-condition')?.textContent).toMatch(/^EXPR /)
   })
 
   it('choosing another target throws the navigation away', async () => {

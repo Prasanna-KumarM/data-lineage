@@ -70,9 +70,9 @@ function SourceLine({ source, onOpenDetail }: { source: SummarySource; onOpenDet
       </span>
       <KindBadge kind={source.kind} />
       {source.condition && (
-        <span className="source-condition">when {source.condition}</span>
+        <span className="source-condition">EXPR {source.condition}</span>
       )}
-      {source.result_expression && <span className="card-meta">Value {source.result_expression}</span>}
+      {source.result_expression && <span className="card-meta">OUTPUT {source.result_expression}</span>}
       {source.leaf_step_id && onOpenDetail && (
         <button
           type="button"

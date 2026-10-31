@@ -42,7 +42,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
 
     sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
-    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "When (condition)", "Value (result)"]
+    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
     assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
@@ -58,7 +58,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     assert all(r[3] == "Column" for r in fdk)
 
     steps = [[c.value for c in row] for row in wb["Steps"].iter_rows(min_row=2)]
-    assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "When (condition)", "Value (result)"]
+    assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "EXPR (driving)", "OUTPUT (result)"]
     assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
     fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
     assert [r[3] for r in fdk_steps] == list(range(1, len(fdk_steps) + 1))
