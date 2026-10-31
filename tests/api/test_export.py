@@ -108,4 +108,6 @@ def test_legend_sheet_carries_traceability(sp_clo_client):
     assert ("Project", "SP_CLO") in legend
     assert any(r[0] == "Database" and r[1] == "lineage.db" for r in legend)
     assert any(r[0] == "Extracted at" and r[1] for r in legend)
-    assert any(r[0] == "Lookup" for r in legend)
+    assert any(r[0] == "Lookup" and "enrichment lookup" in r[1] for r in legend)
+    assert any(r[0] == "EXPR" and "condition" in r[1] for r in legend)
+    assert any(r[0] == "Ultimate source" and r[1] for r in legend)

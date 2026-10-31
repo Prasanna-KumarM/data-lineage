@@ -144,6 +144,30 @@ def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) 
     _style_sheet(sheet, [26, 24, 36, 6, 36, 36, 22, 24, 40, 40])
 
 
+_RELATION_MEANING = {
+    "EXPLICIT_INATTR": "A column mapped directly in Aptitude (attribute to attribute).",
+    "EXPLICIT_PATHFROM_PATHTO": "A direct mapping resolved through a path-from / path-to reference.",
+    "AUTO_MAP_BY_NAME": "Aptitude matched the columns automatically because they share a name.",
+    "TRANSFORMATION_AUTO_MAP_BY_NAME": "An automatic name match inside a transformation.",
+    "EXPRESSION": "The value is computed by an expression; see the EXPR and OUTPUT columns.",
+    "CONSTANT_ASSIGNMENT": "The mapping writes a fixed constant value.",
+    "ENRICHMENT_LOOKUP": "The value is read through an enrichment lookup.",
+    "RUNTIME_FUNCTION_ASSIGNMENT": "The value comes from a runtime function, such as SYSDATE.",
+    "NOT_PERSISTED": "The attribute exists in the EDF but no mapping populates it.",
+}
+
+_GLOSSARY = [
+    ("Ultimate source", "The furthest point upstream: a column nothing else feeds in this lineage, or a constant/function."),
+    ("Hop", "One mapping step. Hop 1 reads the target column; the last hop reads the ultimate source."),
+    ("Hops", "The number of hops between the target column and the ultimate source. A range (for example 2–4 hops) means the paths differ in length."),
+    ("Path variants", "How many distinct paths reach the same ultimate source. Above 1, the Steps sheet lists the shortest."),
+    ("N mappings", "A path written by more than one mapping (same endpoints, different relation/component). The count names how many."),
+    ("EXPR", "The driving expression: the condition that decides whether the mapping applies."),
+    ("OUTPUT", "The result expression: how the value is computed."),
+    ("Business process", "The process that wrote the mapping. Zone-wise feeds of one table appear as one Business Process per zone."),
+]
+
+
 def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
     sheet = wb.create_sheet("How to read")
     rows = [
@@ -155,8 +179,11 @@ def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
         ("Mappings sheet", "Distinct target column / ultimate source pairs; one row each, nothing else."),
         ("Steps sheet", "One row per hop of the shortest path from the target column to each ultimate source. 'From' is the column being read; 'To' is what it feeds. When Path variants > 1, only one path is listed."),
         ("", ""),
+        ("Glossary", ""),
+        *_GLOSSARY,
+        ("", ""),
         ("Mapping kinds", ""),
-        *[(_label(k), "") for k in RELATION_LABEL],
+        *[(_label(k), _RELATION_MEANING[k]) for k in RELATION_LABEL],
         ("", ""),
         ("Source types", ""),
         *[(label, _KIND_MEANING[label]) for label in _KIND_MEANING],
