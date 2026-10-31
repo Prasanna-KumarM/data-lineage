@@ -69,10 +69,22 @@ function SourceLine({ source, onOpenDetail }: { source: SummarySource; onOpenDet
         {source.object_name}.{source.column_name}
       </span>
       <KindBadge kind={source.kind} />
-      {source.condition && (
-        <span className="source-condition">when {source.condition}</span>
+      {(source.condition || source.result_expression) && (
+        <span className="card-expr">
+          {source.condition && (
+            <span className="expr-line">
+              <span className="expr-tag when">EXPR</span>
+              <code>{source.condition}</code>
+            </span>
+          )}
+          {source.result_expression && (
+            <span className="expr-line">
+              <span className="expr-tag value">OUTPUT</span>
+              <code>{source.result_expression}</code>
+            </span>
+          )}
+        </span>
       )}
-      {source.result_expression && <span className="card-meta">Value {source.result_expression}</span>}
       {source.leaf_step_id && onOpenDetail && (
         <button
           type="button"

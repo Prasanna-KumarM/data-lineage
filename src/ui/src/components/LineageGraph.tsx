@@ -36,8 +36,8 @@ function LineageNodeView({ data }: NodeProps<LineageNode>) {
       <div className="graph-node-name" title={`${node.object_name}.${node.column_name}`}>
         {node.object_name}.{node.column_name}
       </div>
-      {node.condition && <div className="graph-node-note">when {node.condition}</div>}
-      {node.result_expression && <div className="graph-node-note">Value {node.result_expression}</div>}
+      {node.condition && <div className="graph-node-note">EXPR {node.condition}</div>}
+      {node.result_expression && <div className="graph-node-note">OUTPUT {node.result_expression}</div>}
       <Handle type="source" position={Position.Left} isConnectable={false} />
     </div>
   )
@@ -105,8 +105,8 @@ function EdgeDetail({ edge, graph }: { edge: GraphEdge; graph: ColumnGraph }) {
         hop {edge.hop} · {relationStyle(edge.relation_type).label}
         {edge.component_name ? ` · ${edge.component_name}` : ''}
       </span>
-      {edge.condition && <span>when {edge.condition}</span>}
-      {edge.result_expression && <span>Value {edge.result_expression}</span>}
+      {edge.condition && <span>EXPR {edge.condition}</span>}
+      {edge.result_expression && <span>OUTPUT {edge.result_expression}</span>}
     </div>
   )
 }

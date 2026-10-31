@@ -57,13 +57,13 @@ export function ChoiceList({ choices, selectedStepId, detailStepId, atRoot, cont
                   <span className="card-expr">
                     {choice.driving_expression && (
                       <span className="expr-line">
-                        <span className="expr-tag when">When</span>
+                        <span className="expr-tag when">EXPR</span>
                         <code>{choice.driving_expression}</code>
                       </span>
                     )}
                     {choice.result_expression && (
                       <span className="expr-line">
-                        <span className="expr-tag value">Value</span>
+                        <span className="expr-tag value">OUTPUT</span>
                         <code>{choice.result_expression}</code>
                       </span>
                     )}

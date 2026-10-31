@@ -167,13 +167,13 @@ describeReal('table summary on the real SP_CLO lineage', () => {
     expect(textOf(within(row).getByRole('button', { name: 'Paths of PDT_CODE' }))).toContain('2 paths · 2 hops')
     const items = within(within(row).getByRole('list', { name: 'Ultimate sources of PDT_CODE' })).getAllByRole('listitem')
     expect(items).toHaveLength(2)
-    expect(items.map((i) => i.querySelector('.source-condition')?.textContent)).toEqual([
-      'when AEF_EVENT_CODE=="E011"',
-      'when ELSE',
+    expect(items.map((i) => i.querySelector('.expr-line code')?.textContent)).toEqual([
+      'AEF_EVENT_CODE=="E011"',
+      'ELSE',
     ])
     for (const item of items) {
       expect(item.querySelector('.badge.kind-constant')?.textContent).toBe('Constant')
-      expect(textOf(item)).toContain('Value "OFFER"')
+      expect(textOf(item)).toContain('OUTPUT"OFFER"')
     }
     const flags = Array.from(row.querySelectorAll('.badge.flag')).map(textOf)
     expect(flags).toEqual(expect.arrayContaining(['Constant', 'CASE']))

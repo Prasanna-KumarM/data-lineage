@@ -66,8 +66,8 @@ function PlainView({ data }: NodeProps<WalkNode>) {
         <div className="graph-node-name" title={label(node)}>
           {label(node)}
         </div>
-        {node.condition && <div className="graph-node-note">when {node.condition}</div>}
-        {node.result_expression && <div className="graph-node-note">Value {node.result_expression}</div>}
+        {node.condition && <div className="graph-node-note">EXPR {node.condition}</div>}
+        {node.result_expression && <div className="graph-node-note">OUTPUT {node.result_expression}</div>}
       </Handles>
     </div>
   )
@@ -89,8 +89,8 @@ function Details({ node, via, onDetails, tracks, onTrack }: { node: GraphNode; v
           <RelationBadge type={via.relation_type} /> {via.component_name ?? 'No component'}
         </div>
       )}
-      {node.condition && <div className="walk-current-line">when {node.condition}</div>}
-      {node.result_expression && <div className="walk-current-line">Value {node.result_expression}</div>}
+      {node.condition && <div className="walk-current-line">EXPR {node.condition}</div>}
+      {node.result_expression && <div className="walk-current-line">OUTPUT {node.result_expression}</div>}
       {via && (
         <button type="button" className="walk-current-details nodrag nopan" onClick={onDetails}>
           Full details
@@ -358,13 +358,13 @@ function Walk({ graph, client, target, onTrack, onLeave, returnTo, appName }: Wa
                       <span className="card-expr">
                         {e.condition && (
                           <span className="expr-line">
-                            <span className="expr-tag when">When</span>
+                            <span className="expr-tag when">EXPR</span>
                             <code>{e.condition}</code>
                           </span>
                         )}
                         {e.result_expression && (
                           <span className="expr-line">
-                            <span className="expr-tag value">Value</span>
+                            <span className="expr-tag value">OUTPUT</span>
                             <code>{e.result_expression}</code>
                           </span>
                         )}

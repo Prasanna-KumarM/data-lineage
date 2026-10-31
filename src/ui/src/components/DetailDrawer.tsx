@@ -75,11 +75,11 @@ function Body({ detail, developer }: { detail: StepDetail; developer: boolean })
         <section className="drawer-section" aria-label="Expression">
           <h3>Expression</h3>
           <div className="expr-block when">
-            <span className="expr-tag when">Condition · when</span>
+            <span className="expr-tag when">EXPR</span>
             <code>{detail.driving_expression ?? '—'}</code>
           </div>
           <div className="expr-block value">
-            <span className="expr-tag value">Value · result</span>
+            <span className="expr-tag value">OUTPUT</span>
             <code>{detail.result_expression ?? '—'}</code>
           </div>
         </section>
@@ -110,8 +110,8 @@ function Body({ detail, developer }: { detail: StepDetail; developer: boolean })
               <li key={c.relation_id}>
                 <RelationBadge type={c.relation_type} /> {c.component_name ?? 'No component'}
                 {c.business_process_name && <span className="card-meta"> · {c.business_process_name}</span>}
-                {c.driving_expression && <div className="card-meta">when {c.driving_expression}</div>}
-                {c.result_expression && <div className="card-meta">Value {c.result_expression}</div>}
+                {c.driving_expression && <div className="card-meta">EXPR {c.driving_expression}</div>}
+                {c.result_expression && <div className="card-meta">OUTPUT {c.result_expression}</div>}
               </li>
             ))}
           </ol>
