@@ -62,7 +62,7 @@ function PathLine({ column, source }: { column: string; source: SummarySource })
   )
 }
 
-function SourceLine({ source }: { source: SummarySource }) {
+function SourceLine({ source, onOpenDetail }: { source: SummarySource; onOpenDetail?: (stepId: string, trigger: HTMLElement) => void }) {
   return (
     <li className="source-line">
       <span className="source-name">
@@ -73,6 +73,16 @@ function SourceLine({ source }: { source: SummarySource }) {
         <span className="source-condition">when {source.condition}</span>
       )}
       {source.result_expression && <span className="card-meta">Value {source.result_expression}</span>}
+      {source.leaf_step_id && onOpenDetail && (
+        <button
+          type="button"
+          className="card-details"
+          aria-label={`Details for ${source.object_name}.${source.column_name}`}
+          onClick={(event) => onOpenDetail(source.leaf_step_id!, event.currentTarget)}
+        >
+          Details
+        </button>
+      )}
     </li>
   )
 }
@@ -105,9 +115,10 @@ interface Props {
   summary: TableSummary
   onOpenColumn: (column: SummaryColumn) => void
   onOpenGraph: (column: SummaryColumn) => void
+  onOpenDetail?: (stepId: string, trigger: HTMLElement) => void
 }
 
-export function SummaryTable({ summary, onOpenColumn, onOpenGraph }: Props) {
+export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail }: Props) {
   const [filter, setFilter] = useState('')
   const [sort, setSort] = useState<SortKey>('name')
   const [openPaths, setOpenPaths] = useState<Set<string>>(new Set())
@@ -245,7 +256,7 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph }: Props) {
                     {openSources.has(column.column_id) && (
                       <ul className="source-list" aria-label={`Ultimate sources of ${column.column_name}`}>
                         {column.sources.map((source) => (
-                          <SourceLine key={source.terminal_id} source={source} />
+                          <SourceLine key={source.terminal_id} source={source} onOpenDetail={onOpenDetail} />
                         ))}
                       </ul>
                     )}

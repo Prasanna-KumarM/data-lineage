@@ -383,7 +383,17 @@ function Session({
         <h2 className="panel-title">Ultimate sources</h2>
         {sources.status === 'loading' && <Loading text="Loading sources…" />}
         {sources.status === 'error' && list.status !== 'error' && <Failure error={sources.error} onRetry={sources.reload} />}
-        {sources.status === 'success' && <SourceList sources={sources.data} continuations={sourceContinuations} onTrack={onTrack} />}
+        {sources.status === 'success' && (
+          <SourceList
+            sources={sources.data}
+            continuations={sourceContinuations}
+            onTrack={onTrack}
+            onDetails={(stepId, trigger) => {
+              detailTrigger.current = trigger
+              setDetailStepId(stepId)
+            }}
+          />
+        )}
       </section>
 
       {detailStepId && (

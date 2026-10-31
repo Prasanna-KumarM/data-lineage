@@ -292,7 +292,7 @@ def test_summary_endpoint_returns_the_table_and_its_columns(client):
     assert set(pdt) == {"column_id", "column_name", "has_lineage", "source_count", "hops_min", "hops_max", "flags", "sources"}
     assert [s["condition"] for s in pdt["sources"]] == ['AEF_EVENT_CODE=="E011"', "ELSE"]
     assert set(pdt["sources"][0]) == {
-        "terminal_id", "object_name", "column_name", "object_type", "kind", "condition", "result_expression",
+        "terminal_id", "leaf_step_id", "object_name", "column_name", "object_type", "kind", "condition", "result_expression",
         "leaf_relation_types", "hops_min", "hops_max", "route_count", "route",
     }
     assert {s["kind"] for c in body["columns"] for s in c["sources"]} <= {"column", "constant", "function", "not_persisted"}

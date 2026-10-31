@@ -58,6 +58,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
                 tid,
                 {
                     "terminal_id": tid,
+                    "leaf_step_id": s["step_id"],
                     "object_id": s["source_object_id"],
                     "column_id": s["source_column_id"],
                     "object_name": s["source_object_name"],
@@ -114,6 +115,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
         sources.append(
             {
                 "terminal_id": tid,
+                "leaf_step_id": entry["leaf_step_id"],
                 "object_name": entry["object_name"],
                 "column_name": entry["column_name"],
                 "object_type": entry["object_type"],

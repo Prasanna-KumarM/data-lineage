@@ -65,6 +65,7 @@ def resolve_terminal_sources(
                 tid,
                 {
                     "terminal_id": tid,
+                    "leaf_step_id": s["step_id"],
                     "object_id": s["source_object_id"],
                     "column_id": s["source_column_id"],
                     "object_name": s["source_object_name"],

@@ -72,6 +72,7 @@ class UpstreamOut(BaseModel):
 
 class TerminalSourceOut(BaseModel):
     terminal_id: str
+    leaf_step_id: Optional[str] = None
     object_id: str
     column_id: str
     object_name: str
@@ -194,6 +195,7 @@ class RouteStepOut(BaseModel):
 
 class SummarySourceOut(BaseModel):
     terminal_id: str
+    leaf_step_id: Optional[str] = None
     object_name: str
     column_name: str
     object_type: Optional[str] = None

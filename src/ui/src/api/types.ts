@@ -64,6 +64,8 @@ export interface Choice {
 
 export interface TerminalSource {
   terminal_id: string
+  /** Step of the mapping that reads from this source; used by the Details drawer. */
+  leaf_step_id?: string | null
   object_id: string
   column_id: string
   object_name: string
@@ -167,6 +169,8 @@ export interface RouteStep {
 
 export interface SummarySource {
   terminal_id: string
+  /** Step of the mapping that reads from this source; used by the Details drawer. */
+  leaf_step_id?: string | null
   object_name: string
   column_name: string
   object_type: string | null

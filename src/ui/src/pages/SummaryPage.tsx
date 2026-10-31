@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { ApiClient } from '../api/client'
+import { bindProject, type ApiClient } from '../api/client'
 import type { TargetObject } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
 import { formatRoute, useNavigate, type Route } from '../routing'
+import { DetailDrawer } from '../components/DetailDrawer'
 import { ErrorNotice, LoadingNotice } from '../components/Notices'
 import { GraphDialog } from '../components/GraphDialog'
 import { objectLabel } from '../components/objectLabel'
@@ -23,13 +24,18 @@ export function SummaryPage({ client, route }: Props) {
   const [chosenProject, setChosenProject] = useState<string | null>(null)
   const [graphColumn, setGraphColumn] = useState<{ id: string; name: string } | null>(null)
   const closeGraph = useCallback(() => setGraphColumn(null), [])
+  const [detailStep, setDetailStep] = useState<string | null>(null)
+  const [developer, setDeveloper] = useState(false)
 
   const entries = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false) : []
   const names = entries.map((p) => p.project_name)
   const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
   const project = route.project ?? chosenProject ?? onlyUsable
 
-  useEffect(() => setGraphColumn(null), [project, route.objectId])
+  useEffect(() => {
+    setGraphColumn(null)
+    setDetailStep(null)
+  }, [project, route.objectId])
 
   useEffect(() => {
     if (route.project === null && chosenProject === null && onlyUsable) setChosenProject(onlyUsable)
@@ -108,6 +114,7 @@ export function SummaryPage({ client, route }: Props) {
                   navigate({ name: 'lineage', project, objectId: route.objectId, columnId: column.column_id })
                 }
                 onOpenGraph={(column) => setGraphColumn({ id: column.column_id, name: column.column_name })}
+                onOpenDetail={(stepId) => setDetailStep(stepId)}
               />
               {graphColumn && (
                 <GraphDialog
@@ -116,6 +123,15 @@ export function SummaryPage({ client, route }: Props) {
                   tableName={summary.data.object.object_name}
                   columnName={graphColumn.name}
                   onClose={closeGraph}
+                />
+              )}
+              {detailStep && project && (
+                <DetailDrawer
+                  client={bindProject(client, project)}
+                  stepId={detailStep}
+                  developer={developer}
+                  onDeveloperChange={setDeveloper}
+                  onClose={() => setDetailStep(null)}
                 />
               )}
             </>
