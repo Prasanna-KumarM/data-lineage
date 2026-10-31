@@ -191,6 +191,7 @@ class RouteStepOut(BaseModel):
     endpoint: str
     relation_type: str
     component_name: Optional[str] = None
+    business_process_name: Optional[str] = None
 
 
 class SummarySourceOut(BaseModel):
@@ -203,6 +204,7 @@ class SummarySourceOut(BaseModel):
     condition: Optional[str] = None
     result_expression: Optional[str] = None
     leaf_relation_types: list[str]
+    business_process_name: Optional[str] = None
     hops_min: int
     hops_max: int
     route_count: int

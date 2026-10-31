@@ -38,11 +38,21 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     object_id = _target_id(sp_clo_client, "CM_PAR_LOAN_TRADES")
     summary = sp_clo_client.get(f"/targets/{object_id}/summary", params={"project": "SP_CLO"}).json()
     wb = _book(sp_clo_client.get(f"/targets/{object_id}/export.xlsx", params={"project": "SP_CLO"}))
-    assert wb.sheetnames == ["Summary", "Steps", "How to read"]
+    assert wb.sheetnames == ["Summary", "Mappings", "Steps", "How to read"]
+
+    mappings = [[c.value for c in row] for row in wb["Mappings"].iter_rows(min_row=2)]
+    assert [c.value for c in wb["Mappings"][1]] == ["Target object", "Target column", "Source object", "Source column"]
+    assert len(mappings) == len({tuple(r) for r in mappings})
+    assert len(mappings) == sum(len(c["sources"]) for c in summary["columns"] if c["sources"])
+    assert [r for r in mappings if r[1] == "FDK_MT"] == [
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTCS_BOOK_CODE"],
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTC_BOOK_CODE"],
+        ["CM_PAR_LOAN_TRADES", "FDK_MT", "CM_CLO_OFFER", "OFR_HTS_BOOK_CODE"],
+    ]
 
     sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
-    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
+    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
     assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
@@ -58,7 +68,10 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     assert all(r[3] == "Column" for r in fdk)
 
     steps = [[c.value for c in row] for row in wb["Steps"].iter_rows(min_row=2)]
-    assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "EXPR (driving)", "OUTPUT (result)"]
+    assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"]
+    # Business process is populated on every Summary and Steps row.
+    assert all(r[4] for r in rows)
+    assert all(r[8] for r in steps)
     assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
     fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
     assert [r[3] for r in fdk_steps] == list(range(1, len(fdk_steps) + 1))
@@ -98,4 +111,6 @@ def test_legend_sheet_carries_traceability(sp_clo_client):
     assert ("Project", "SP_CLO") in legend
     assert any(r[0] == "Database" and r[1] == "lineage.db" for r in legend)
     assert any(r[0] == "Extracted at" and r[1] for r in legend)
-    assert any(r[0] == "Lookup" for r in legend)
+    assert any(r[0] == "Lookup" and "enrichment lookup" in r[1] for r in legend)
+    assert any(r[0] == "EXPR" and "condition" in r[1] for r in legend)
+    assert any(r[0] == "Ultimate source" and r[1] for r in legend)

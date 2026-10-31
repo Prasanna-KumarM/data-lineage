@@ -165,6 +165,7 @@ export interface RouteStep {
   endpoint: string
   relation_type: string
   component_name: string | null
+  business_process_name?: string | null
 }
 
 export interface SummarySource {
@@ -178,6 +179,7 @@ export interface SummarySource {
   condition: string | null
   result_expression: string | null
   leaf_relation_types: string[]
+  business_process_name?: string | null
   hops_min: number
   hops_max: number
   route_count: number

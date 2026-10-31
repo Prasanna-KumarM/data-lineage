@@ -13,7 +13,7 @@ from lineage_api.graph import StepGraph
 from lineage_api.sources import _terminal_id, db_fingerprint
 
 _TABLE_STEPS_SQL = """
-    SELECT s.step_id, s.business_process_id, s.lineage_level, s.is_terminal, s.relation_type,
+    SELECT s.step_id, s.business_process_id, s.business_process_name, s.lineage_level, s.is_terminal, s.relation_type,
            s.root_target_column_id,
            s.source_object_id, s.source_column_id, s.source_object_name, s.source_column_name,
            s.target_object_id, s.target_column_id, s.driving_expression, s.result_expression,
@@ -103,6 +103,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
                     "endpoint": f"{s['source_object_name']}.{s['source_column_name']}",
                     "relation_type": s["relation_type"],
                     "component_name": s["component_name"],
+                    "business_process_name": s["business_process_name"],
                 }
             )
             step_id = stats[step_id][tid][3]
@@ -112,6 +113,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
     for tid, entry in terminals.items():
         mn, mx, cnt, first = column[tid]
         leaf_types = sorted(entry["leaf_relation_types"])
+        route_steps = route(first, tid)
         sources.append(
             {
                 "terminal_id": tid,
@@ -126,7 +128,9 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
                 "hops_min": mn,
                 "hops_max": mx,
                 "route_count": cnt,
-                "route": route(first, tid),
+                # The Business Process that wrote hop 1 owns this path.
+                "business_process_name": route_steps[0]["business_process_name"] if route_steps else None,
+                "route": route_steps,
                 "_sort": (entry["object_name"], entry["column_name"], entry["object_id"], entry["column_id"],
                           entry["condition"] or "", entry["result_expression"] or ""),
             }
