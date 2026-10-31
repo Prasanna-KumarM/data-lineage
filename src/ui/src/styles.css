@@ -223,10 +223,12 @@ main {
 }
 
 .source {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
   padding: 10px 12px;
+  padding-right: 84px;
   border: 1px solid #d9e2ec;
   border-radius: 6px;
 }
@@ -849,11 +851,13 @@ button.dot:focus-visible {
 
 .path-line,
 .source-line {
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 4px 10px;
   padding: 8px 10px;
+  padding-right: 84px;
   background: #f9fafb;
   border-radius: 6px;
 }
