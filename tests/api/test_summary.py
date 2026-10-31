@@ -151,7 +151,7 @@ def test_a_direct_mapping_is_one_hop(sp_clo):
     assert source["kind"] == "column"
     assert source["route"] == [
         {"endpoint": "CM_CLO_OFFER.OFR_ACCEPTANCE_DATE", "relation_type": "AUTO_MAP_BY_NAME",
-         "component_name": "CM_CLO_OFR GFRS Mapping"},
+         "component_name": "CM_CLO_OFR GFRS Mapping", "business_process_name": "CM_CLO_OFFER"},
     ]
 
 
@@ -293,7 +293,7 @@ def test_summary_endpoint_returns_the_table_and_its_columns(client):
     assert [s["condition"] for s in pdt["sources"]] == ['AEF_EVENT_CODE=="E011"', "ELSE"]
     assert set(pdt["sources"][0]) == {
         "terminal_id", "leaf_step_id", "object_name", "column_name", "object_type", "kind", "condition", "result_expression",
-        "leaf_relation_types", "hops_min", "hops_max", "route_count", "route",
+        "leaf_relation_types", "business_process_name", "hops_min", "hops_max", "route_count", "route",
     }
     assert {s["kind"] for c in body["columns"] for s in c["sources"]} <= {"column", "constant", "function", "not_persisted"}
 

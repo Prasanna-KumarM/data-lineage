@@ -243,7 +243,7 @@ def summarize_target(conn: sqlite3.Connection, project: str, object_id: str) -> 
         )
     ]
     pairs = target["_root_pairs"]
-    sql = f"""SELECT s.step_id,s.business_process_id,s.lineage_level,s.is_terminal,s.relation_type,
+    sql = f"""SELECT s.step_id,s.business_process_id,s.business_process_name,s.lineage_level,s.is_terminal,s.relation_type,
                       s.root_target_object_id,s.root_target_column_id,s.root_target_column_name,
                       s.source_object_id,s.source_column_id,s.source_object_name,s.source_column_name,
                       s.target_object_id,s.target_column_id,s.driving_expression,s.result_expression,

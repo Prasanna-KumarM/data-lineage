@@ -77,18 +77,19 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
     """One row per target column and ultimate source: where the value finally comes from."""
     sheet = wb.active
     sheet.title = "Summary"
-    sheet.append(["Target table", "Target column", "Ultimate source", "Source type", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
+    sheet.append(["Target table", "Target column", "Ultimate source", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
         sources = column["sources"] or [None]
         for source in sources:
             if source is None:
-                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", "", ""])
+                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", "", "", ""])
             else:
                 sheet.append([
                     object_name,
                     column["column_name"],
                     f"{source['object_name']}.{source['column_name']}",
                     KIND_LABEL.get(source["kind"], source["kind"]),
+                    source["business_process_name"] or "",
                     _hops(source),
                     source["route_count"],
                     source["condition"] or "",
@@ -97,7 +98,7 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
             r = sheet.max_row
             sheet.cell(row=r, column=2).fill = _TARGET_FILL
             sheet.cell(row=r, column=3).fill = _SOURCE_FILL
-    _style_sheet(sheet, [26, 24, 36, 14, 12, 12, 40, 40])
+    _style_sheet(sheet, [26, 24, 36, 14, 30, 12, 12, 40, 40])
 
 
 def _mappings_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
@@ -117,7 +118,7 @@ def _mappings_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]
 def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
     """One row per hop: target column -> hop 1 -> hop 2 -> ... -> ultimate source."""
     sheet = wb.create_sheet("Steps")
-    sheet.append(["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "EXPR (driving)", "OUTPUT (result)"])
+    sheet.append(["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
         for source in column["sources"]:
             route = source["route"]
@@ -133,6 +134,7 @@ def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) 
                     route[index - 1]["endpoint"] if index else f"{object_name}.{column['column_name']}",
                     _label(step["relation_type"]),
                     step["component_name"] or "",
+                    step["business_process_name"] or "",
                     (source["condition"] or "") if is_leaf else "",
                     (source["result_expression"] or "") if is_leaf else "",
                 ])
@@ -141,7 +143,7 @@ def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) 
                     sheet.cell(row=r, column=6).fill = _TARGET_FILL
                 if is_leaf:
                     sheet.cell(row=r, column=5).fill = _SOURCE_FILL
-    _style_sheet(sheet, [26, 24, 36, 6, 36, 36, 22, 24, 40, 40])
+    _style_sheet(sheet, [26, 24, 36, 6, 36, 36, 22, 24, 30, 40, 40])
 
 
 _RELATION_MEANING = {
