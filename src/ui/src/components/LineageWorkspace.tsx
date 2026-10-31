@@ -353,28 +353,30 @@ function Session({
           <Breadcrumb targetLabel={targetLabel} path={nav.path} selected={pathSelected} />
         </div>
 
-        <div className="block">
+        <div className="block block-choices">
           <h3 className="block-title">Pick one to follow</h3>
           <p className="context">
             Upstream of <strong>{endpoint}</strong>
           </p>
-          {list.status === 'loading' && <Loading text="Loading lineage…" />}
-          {list.status === 'error' && <Failure error={list.error} onRetry={list.reload} />}
-          {list.status === 'success' && (
-            <ChoiceList
-              choices={list.data}
-              selectedStepId={nav.selectedStepId}
-              detailStepId={detailStepId}
-              atRoot={depth === 0}
-              continuations={continuations}
-              onTrack={onTrack}
-              onSelect={(stepId) => dispatch({ type: 'select', stepId })}
-              onDetails={(stepId, trigger) => {
-                detailTrigger.current = trigger
-                setDetailStepId(stepId)
-              }}
-            />
-          )}
+          <div className="choices-scroll">
+            {list.status === 'loading' && <Loading text="Loading lineage…" />}
+            {list.status === 'error' && <Failure error={list.error} onRetry={list.reload} />}
+            {list.status === 'success' && (
+              <ChoiceList
+                choices={list.data}
+                selectedStepId={nav.selectedStepId}
+                detailStepId={detailStepId}
+                atRoot={depth === 0}
+                continuations={continuations}
+                onTrack={onTrack}
+                onSelect={(stepId) => dispatch({ type: 'select', stepId })}
+                onDetails={(stepId, trigger) => {
+                  detailTrigger.current = trigger
+                  setDetailStepId(stepId)
+                }}
+              />
+            )}
+          </div>
         </div>
 
       </section>
