@@ -52,7 +52,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
 
     sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
-    assert headers == ["Target table", "Target column", "Ultimate source", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
+    assert headers == ["Target table", "Target column", "Ultimate source object", "Ultimate source column", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
     assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
@@ -60,17 +60,17 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
 
     fdk = [r for r in rows if r[1] == "FDK_MT"]
     assert len(fdk) == len(next(c for c in summary["columns"] if c["column_name"] == "FDK_MT")["sources"]) == 3
-    assert {r[2] for r in fdk} == {
-        "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE",
-        "CM_CLO_OFFER.OFR_HTC_BOOK_CODE",
-        "CM_CLO_OFFER.OFR_HTS_BOOK_CODE",
+    assert {(r[2], r[3]) for r in fdk} == {
+        ("CM_CLO_OFFER", "OFR_HTCS_BOOK_CODE"),
+        ("CM_CLO_OFFER", "OFR_HTC_BOOK_CODE"),
+        ("CM_CLO_OFFER", "OFR_HTS_BOOK_CODE"),
     }
-    assert all(r[3] == "Column" for r in fdk)
+    assert all(r[4] == "Column" for r in fdk)
 
     steps = [[c.value for c in row] for row in wb["Steps"].iter_rows(min_row=2)]
     assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"]
     # Business process is populated on every Summary and Steps row.
-    assert all(r[4] for r in rows)
+    assert all(r[5] for r in rows)
     assert all(r[8] for r in steps)
     assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
     fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
