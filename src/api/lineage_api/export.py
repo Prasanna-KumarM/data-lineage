@@ -77,17 +77,18 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
     """One row per target column and ultimate source: where the value finally comes from."""
     sheet = wb.active
     sheet.title = "Summary"
-    sheet.append(["Target table", "Target column", "Ultimate source", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
+    sheet.append(["Target table", "Target column", "Ultimate source object", "Ultimate source column", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
         sources = column["sources"] or [None]
         for source in sources:
             if source is None:
-                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", "", "", ""])
+                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", "", "", "", ""])
             else:
                 sheet.append([
                     object_name,
                     column["column_name"],
-                    f"{source['object_name']}.{source['column_name']}",
+                    source["object_name"],
+                    source["column_name"],
                     KIND_LABEL.get(source["kind"], source["kind"]),
                     source["business_process_name"] or "",
                     _hops(source),
@@ -98,7 +99,8 @@ def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]
             r = sheet.max_row
             sheet.cell(row=r, column=2).fill = _TARGET_FILL
             sheet.cell(row=r, column=3).fill = _SOURCE_FILL
-    _style_sheet(sheet, [26, 24, 36, 14, 30, 12, 12, 40, 40])
+            sheet.cell(row=r, column=4).fill = _SOURCE_FILL
+    _style_sheet(sheet, [26, 24, 30, 26, 14, 30, 12, 12, 40, 40])
 
 
 def _mappings_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
