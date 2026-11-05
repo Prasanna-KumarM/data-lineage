@@ -41,6 +41,56 @@ def test_no_continuation_returns_empty(outputs_client):
     assert r.json() == []
 
 
+def test_target_definitions_are_cached_across_continuation_calls():
+    outputs = ROOT / "outputs"
+    if not (outputs / "SP_CLO" / "lineage.db").is_file() or not (outputs / "SP_LIQ" / "lineage.db").is_file():
+        pytest.skip("both project DBs are required")
+    app = create_app(outputs_dir=str(outputs))
+    client = TestClient(app)
+    params = {"project": "SP_LIQ", "object_name": "CM_PAR_LOAN_TRADES", "column_name": "FDK_MT"}
+    first = client.get("/lineage/continuations", params=params)
+    assert first.status_code == 200
+    computed = app.state.catalog_cache.compute_count
+    assert computed > 0
+    for _ in range(5):
+        r = client.get("/lineage/continuations", params=params)
+        assert r.status_code == 200
+        assert r.json() == first.json()
+    assert app.state.catalog_cache.compute_count == computed
+
+
+def test_catalog_cache_computes_once_under_concurrency():
+    import threading
+
+    from lineage_api.db import open_readonly
+    from lineage_api.target_catalog import TargetCatalogCache
+
+    db = ROOT / "outputs" / "SP_CLO" / "lineage.db"
+    if not db.is_file():
+        pytest.skip("project DB required")
+    cache = TargetCatalogCache()
+    results, errors = [], []
+
+    def worker():
+        try:
+            conn = open_readonly(db)
+            try:
+                results.append(cache.get(conn, "SP_CLO"))
+            finally:
+                conn.close()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(exc)
+
+    threads = [threading.Thread(target=worker) for _ in range(8)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert not errors
+    assert cache.compute_count == 1
+    assert all(r is results[0] for r in results)
+
+
 def test_continuation_never_points_back_to_the_same_project(outputs_client):
     r = outputs_client.get(
         "/lineage/continuations",

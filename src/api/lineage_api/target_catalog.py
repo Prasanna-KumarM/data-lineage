@@ -2,10 +2,11 @@
 import hashlib
 import json
 import sqlite3
-from collections import defaultdict
+import threading
+from collections import OrderedDict, defaultdict
 from typing import Any
 
-from lineage_api.db import declared_only
+from lineage_api.db import db_fingerprint, declared_only
 
 
 def _id(prefix: str, *parts: str) -> str:
@@ -17,6 +18,50 @@ def _has_target_components(conn: sqlite3.Connection) -> bool:
     return conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='component'"
     ).fetchone() is not None
+
+
+class TargetCatalogCache:
+    """Remembers target_definitions per database until the DB file changes.
+
+    Computing target definitions runs per-(business process × target) queries, so
+    endpoints that resolve targets repeatedly (notably /lineage/continuations,
+    which scans every project's database) share this cache.
+    """
+
+    def __init__(self, max_entries: int = 32) -> None:
+        self._entries: OrderedDict[tuple, list[dict[str, Any]]] = OrderedDict()
+        self._pending: dict[tuple, threading.Event] = {}
+        self._max_entries = max_entries
+        self._lock = threading.Lock()
+        self.compute_count = 0
+
+    def get(self, conn: sqlite3.Connection, project: str) -> list[dict[str, Any]]:
+        key = (db_fingerprint(conn), project)
+        while True:
+            with self._lock:
+                cached = self._entries.get(key)
+                if cached is not None:
+                    self._entries.move_to_end(key)
+                    return cached
+                event = self._pending.get(key)
+                if event is None:
+                    event = threading.Event()
+                    self._pending[key] = event
+                    break  # this thread computes; others wait on the event
+            event.wait()  # another thread is computing; re-check once it finishes
+        try:
+            computed = target_definitions(conn, project)
+            with self._lock:
+                self.compute_count += 1
+                self._entries[key] = computed
+                self._entries.move_to_end(key)
+                while len(self._entries) > self._max_entries:
+                    self._entries.popitem(last=False)
+            return computed
+        finally:
+            with self._lock:
+                self._pending.pop(key, None)
+            event.set()
 
 
 def _has_invocations(conn: sqlite3.Connection) -> bool:
@@ -52,12 +97,16 @@ def _calling_processes(
     ).fetchall()
 
 
-def target_definitions(conn: sqlite3.Connection, project: str) -> list[dict[str, Any]]:
+def target_definitions(
+    conn: sqlite3.Connection, project: str, cache: TargetCatalogCache | None = None
+) -> list[dict[str, Any]]:
     """Group roots by Aptitude target name/project and retain their owning BP/root IDs.
 
     A Target component can have same-named canonical objects in multiple projects. Include
     every matching root in its Business Process so no relation mappings are dropped.
     """
+    if cache is not None:
+        return cache.get(conn, project)
     if not _has_target_components(conn):
         rows = conn.execute(
             """SELECT DISTINCT s.root_target_object_id AS object_id,
@@ -148,8 +197,10 @@ def target_definitions(conn: sqlite3.Connection, project: str) -> list[dict[str,
     return results
 
 
-def find_target(conn: sqlite3.Connection, project: str, object_id: str) -> dict[str, Any] | None:
-    return next((t for t in target_definitions(conn, project) if t["object_id"] == object_id), None)
+def find_target(
+    conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+) -> dict[str, Any] | None:
+    return next((t for t in target_definitions(conn, project, cache) if t["object_id"] == object_id), None)
 
 
 def target_column_id(object_id: str, column_name: str) -> str:
@@ -194,10 +245,11 @@ def _column_rows(conn: sqlite3.Connection, target: dict[str, Any]) -> list[dict[
 
 
 def target_column_pairs(
-    conn: sqlite3.Connection, project: str, object_id: str, column_id: str
+    conn: sqlite3.Connection, project: str, object_id: str, column_id: str,
+    cache: TargetCatalogCache | None = None,
 ) -> list[tuple[str, str, str]]:
     """Physical (BP, object, column) roots represented by a logical target column."""
-    target = find_target(conn, project, object_id)
+    target = find_target(conn, project, object_id, cache)
     if target is None:
         return []
     name_row = next(
@@ -226,11 +278,13 @@ def list_target_columns(conn: sqlite3.Connection, project: str, object_id: str) 
     return [row for row in _column_rows(conn, target) if row["step_count"] > 0]
 
 
-def summarize_target(conn: sqlite3.Connection, project: str, object_id: str) -> dict[str, Any]:
+def summarize_target(
+    conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+) -> dict[str, Any]:
     """Combine the physical root lineages owned by one Aptitude Target component."""
     from lineage_api.summary import _NO_LINEAGE, _analyze_column, source_kind
 
-    target = find_target(conn, project, object_id)
+    target = find_target(conn, project, object_id, cache)
     if target is None:
         raise LookupError(object_id)
     physical_ids = sorted({root_id for _, root_id in target["_root_pairs"]})
