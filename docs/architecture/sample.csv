@@ -85,3 +85,31 @@ Cust_Type==""GLOL"" or
 Cust_Type==""GPSL"") And IsNull( Grid_SebsectorCode )","""9""",,4,"PAR_GFRS_TFS_TRADES.COUNTERPARTY_SECTOR_CODE <- INTERIM.COUNTERPARTY_SECTOR_CODE <- INTERIM.Sector Code <- INTERIM.Sector <- CONSTANT.""9""",,,,,
 PAR_GFRS_TFS_TRADES,COUNTERPARTY_SECTOR_CODE,4,Grid_SebsectorCode,INTERIM,e_Grid_SebsectorCode,INTERIM,CM_TIP GFRS Financing Export Mapping,CM_TIP_FINANCING,EXPLICIT_ATTR_REL_PRESENT,,,BLS_fe21ac8583f4bb28e312479d1989c486b2117562e7a25a10e3ff4ca0b14db4a9,MAP_91097f5b5c5c6b961fd7740614336be7c78fc9b03d484c52ed00c9b50139048a,4,0,OBJ_2cf60ce1fd063baa4cd2bc7499502c6ea23163aaf9a31c6f9653be77102b9ae4,COL_4100e83d2c161a92d0e0d73c14e3921d57626b50b3a760c8bb1d13aa4769f09c,PAR_GFRS_TFS_TRADES,COUNTERPARTY_SECTOR_CODE,1,MAP_38cf812550bbf93a6e9b538c102a9b25c49f44246dfd553466a86119c96008c1,EXPLICIT_ATTR_REL_PRESENT,OBJ_a8b189422ac0d447998b03b654eed119a383d964cfed7b400dcf7707c9553ad8,COL_59fb6069f9ebde5828821324baf340f049c22e5b30db65e759e30e4d0ba5ddad,INTERIM,e_Grid_SebsectorCode,OBJ_a8b189422ac0d447998b03b654eed119a383d964cfed7b400dcf7707c9553ad8,COL_632a7e80454d99aa89cb51f1f3e4add583a2c76169cc80a8db03070dd79a0ccb,INTERIM,Grid_SebsectorCode,CMP_6770642c0913cd15ac071e6d8c1b52978a5439814adbcd9d8eaf17982713b0bd,CM_TIP GFRS Financing Export Mapping,AptitudeServiceRuleCall,BPR_30416384593ed2276f2fef4f5e589d1490a0251d5ebcd38f9446d68469d09870,CM_TIP_FINANCING,Explicit,EXPLICIT_ATTR_REL_PRESENT,RuleInputAttribute:8:e_Grid_SebsectorCode -> RuleWriteAttribute:9:Grid_SebsectorCode,,,,5,PAR_GFRS_TFS_TRADES.COUNTERPARTY_SECTOR_CODE <- INTERIM.COUNTERPARTY_SECTOR_CODE <- INTERIM.Sector Code <- INTERIM.Sector <- INTERIM.Grid_SebsectorCode <- INTERIM.e_Grid_SebsectorCode,,,,,
 PAR_GFRS_TFS_TRADES,COUNTERPARTY_SECTOR_CODE,4,Grid_SebsectorCode,INTERIM,e_Grid_SebsectorCode,INTERIM,CM_TIP GFRS Export Mapping,CM_TIP_MASTER,EXPLICIT_ATTR_REL_PRESENT,,,BLS_bb14f9308ad7734289b9776afa0765d78b619c58482f50aae27492d74628ae68,MAP_ccb0b10707a6dcdd18da24758c2b153a4a2ea1ee47271c89c648d7a0f9430168,4,0,OBJ_2cf60ce1fd063baa4cd2bc7499502c6ea23163aaf9a31c6f9653be77102b9ae4,COL_4100e83d2c161a92d0e0d73c14e3921d57626b50b3a760c8bb1d13aa4769f09c,PAR_GFRS_TFS_TRADES,COUNTERPARTY_SECTOR_CODE,1,MAP_86e63582354ad5e691a898685515b7517c8060169c972e8e3491b6755c17924f,EXPLICIT_ATTR_REL_PRESENT,OBJ_a8b189422ac0d447998b03b654eed119a383d964cfed7b400dcf7707c9553ad8,COL_ae786b2b60a91e484cdb9fed6cbd642412695594661465c91f1b9a14a30a31c7,INTERIM,e_Grid_SebsectorCode,OBJ_a8b189422ac0d447998b03b654eed119a383d964cfed7b400dcf7707c9553ad8,COL_8c3bdfe38a4748eb8b0f727f93f4aa04b5329a3976900fcd60a760278dfb1562,INTERIM,Grid_SebsectorCode,CMP_7f9b3211aed143629fc5dcff01f8185b587f12ec27e0c95014a91f190e6c366d,CM_TIP GFRS Export Mapping,AptitudeServiceRuleCall,BPR_8d1e9c7439c08f8bfa96d13e3cac3190b0154d180c872bfeecd17d7d87bc3b38,CM_TIP_MASTER,Explicit,EXPLICIT_ATTR_REL_PRESENT,RuleInputAttribute:35:e_Grid_SebsectorCode -> RuleWriteAttribute:37:Grid_SebsectorCode,,,,5,PAR_GFRS_TFS_TRADES.COUNTERPARTY_SECTOR_CODE <- INTERIM.COUNTERPARTY_SECTOR_CODE <- INTERIM.Sector Code <- INTERIM.Sector <- INTERIM.Grid_SebsectorCode <- INTERIM.e_Grid_SebsectorCode,,,,,
+
+
+
+Reproduced exactly. This is an **extractor-side data bug**, so per our ground rule I'm calling it out with no UI change and no feature branch needed.
+
+**Root cause — duplicate column identities.** In the CSV, the same `(object, column)` exists under several different `column_id`s:
+
+| Column | Distinct ids |
+|---|---|
+| `INTERIM.Sector Code` | 4 |
+| `INTERIM.Grid_SebsectorCode` | 4 |
+| `INTERIM.COUNTERPARTY_SECTOR_CODE` | 2 |
+| `INTERIM.Sector` | 2 |
+| `INTERIM.e_Grid_SebsectorCode` | 2 |
+
+Hops join by endpoint **ids**. The links that survive are the ones where the ids happen to match:
+
+- L0 → L1: ids match (`COL_67b1…`) ✓
+- L1 → L2: `Sector Code` **breaks** — L1's source id `COL_1b0d…` ≠ L2's target id `COL_b797…` → the walkthrough thinks `INTERIM.Sector Code` is an ultimate source. (Verified by running our real navigation code on the CSV: `has_more_upstream = False`, zero children, while 2 steps target it.)
+- L3 → L4: `Grid_SebsectorCode` breaks the same way (`COL_109d…` ≠ `COL_632a…`), so even past the first break, the chain would stop again.
+
+**Fix for the extractor:** one `canonical_column` identity per `(object_id, column_name)` — when a step/relation references a column, look up the existing id and reuse it instead of minting a new one. Note the schema already has `UNIQUE (object_id, column_name)` on `canonical_column`, so on our schema those duplicate rows couldn't even be inserted — the duplicates live in the denormalized id fields on the step/relation rows, which is why nothing complained.
+
+Two side notes:
+- The same duplication repeats for the two Business Processes (FINANCING vs MASTER) — after the fix, both paths still exist, but each link's ids must be consistent within the path.
+- Your CSV has a `root_target_is_edf_column` column — your extractor build is ahead of the schema this repo serves. If EDF flags are landing, tell me and I'll wire them into the API (that's the "declared columns" consumer).
+
+Once the extractor regenerates with consistent ids, the UI will show all 5 hops with no code change. Happy to re-verify against a fresh CSV/DB when you have it.
