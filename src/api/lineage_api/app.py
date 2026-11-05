@@ -27,6 +27,7 @@ from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.summary import TableSummaryCache
 from lineage_api.target_catalog import (
+    TargetCatalogCache,
     _has_target_components,
     find_target,
     list_target_columns as list_target_component_columns,
@@ -89,12 +90,14 @@ def _require_project(conn: sqlite3.Connection, project: str) -> None:
         raise ApiError(404, "PROJECT_NOT_FOUND", f"Unknown project: {project}")
 
 
-def _api_targets(conn: sqlite3.Connection, project: str) -> list[dict]:
+def _api_targets(
+    conn: sqlite3.Connection, project: str, cache: TargetCatalogCache | None = None
+) -> list[dict]:
     if not _has_target_components(conn):
         return list_target_objects(conn, project)
     return [
         {key: value for key, value in target.items() if not key.startswith("_")}
-        for target in target_definitions(conn, project)
+        for target in target_definitions(conn, project, cache)
     ]
 
 
@@ -104,14 +107,19 @@ def _api_columns(conn: sqlite3.Connection, project: str, object_id: str) -> list
     return list_target_columns(conn, project, object_id)
 
 
-def _require_object(conn: sqlite3.Connection, project: str, object_id: str) -> None:
+def _require_object(
+    conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+) -> None:
     _require_project(conn, project)
-    if not any(o["object_id"] == object_id for o in _api_targets(conn, project)):
+    if not any(o["object_id"] == object_id for o in _api_targets(conn, project, cache)):
         raise ApiError(404, "TARGET_OBJECT_NOT_FOUND", f"Unknown target object: {object_id}")
 
 
-def _require_column(conn: sqlite3.Connection, project: str, object_id: str, column_id: str) -> None:
-    _require_object(conn, project, object_id)
+def _require_column(
+    conn: sqlite3.Connection, project: str, object_id: str, column_id: str,
+    cache: TargetCatalogCache | None = None,
+) -> None:
+    _require_object(conn, project, object_id, cache)
     if not any(c["column_id"] == column_id for c in _api_columns(conn, project, object_id)):
         raise ApiError(404, "TARGET_COLUMN_NOT_FOUND", f"Unknown target column: {column_id}")
 
@@ -123,6 +131,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
     app.state.registries = {}
     app.state.source_cache = TargetSourceCache()
     app.state.summary_cache = TableSummaryCache()
+    app.state.catalog_cache = TargetCatalogCache()
 
     @app.exception_handler(ApiError)
     def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -183,47 +192,54 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
             conn.close()
 
     @app.get("/targets", response_model=list[schemas.TargetObjectOut])
-    def targets(project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+    def targets(request: Request, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         _require_project(conn, project)
-        return _api_targets(conn, project)
+        return _api_targets(conn, project, request.app.state.catalog_cache)
 
     @app.get("/targets/search", response_model=list[schemas.TargetObjectOut])
-    def search_targets(project: str = Query(...), q: str = "", conn: sqlite3.Connection = Depends(get_conn)):
+    def search_targets(request: Request, project: str = Query(...), q: str = "", conn: sqlite3.Connection = Depends(get_conn)):
         _require_project(conn, project)
         if not _has_target_components(conn):
             return search_target_objects(conn, project, q)
         needle = q.strip().casefold()
-        return [t for t in _api_targets(conn, project) if not needle or needle in t["object_name"].casefold()]
+        return [
+            t for t in _api_targets(conn, project, request.app.state.catalog_cache)
+            if not needle or needle in t["object_name"].casefold()
+        ]
 
-    def _summary_for(conn: sqlite3.Connection, project: str, object_id: str) -> tuple[dict, str]:
+    def _summary_for(
+        conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+    ) -> tuple[dict, str]:
         """(summary, object name) as shown in the UI; shared by the JSON and Excel endpoints."""
-        target = find_target(conn, project, object_id) if _has_target_components(conn) else None
+        target = find_target(conn, project, object_id, cache) if _has_target_components(conn) else None
         if target is not None:
             summary = app.state.summary_cache.get_computed(
                 conn,
                 (project, object_id),
-                lambda: summarize_target(conn, project, object_id),
+                lambda: summarize_target(conn, project, object_id, cache=cache),
             )
             return summary, target["object_name"]
         summary = app.state.summary_cache.get(conn, project, object_id)
-        obj = next(o for o in _api_targets(conn, project) if o["object_id"] == object_id)
+        obj = next(o for o in _api_targets(conn, project, cache) if o["object_id"] == object_id)
         return summary, obj["object_name"]
 
     @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
-    def table_summary(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
-        _require_object(conn, project, object_id)
-        summary, _ = _summary_for(conn, project, object_id)
-        target = find_target(conn, project, object_id) if _has_target_components(conn) else None
+    def table_summary(request: Request, object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        cache = request.app.state.catalog_cache
+        _require_object(conn, project, object_id, cache)
+        summary, _ = _summary_for(conn, project, object_id, cache)
+        target = find_target(conn, project, object_id, cache) if _has_target_components(conn) else None
         if target is not None:
             public_target = {key: value for key, value in target.items() if not key.startswith("_")}
             return {**summary, "object": public_target}
-        obj = next(o for o in _api_targets(conn, project) if o["object_id"] == object_id)
+        obj = next(o for o in _api_targets(conn, project, cache) if o["object_id"] == object_id)
         return {**summary, "object": obj}
 
     @app.get("/targets/{object_id}/export.xlsx")
-    def table_summary_export(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
-        _require_object(conn, project, object_id)
-        summary, object_name = _summary_for(conn, project, object_id)
+    def table_summary_export(request: Request, object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        cache = request.app.state.catalog_cache
+        _require_object(conn, project, object_id, cache)
+        summary, object_name = _summary_for(conn, project, object_id, cache)
         content = build_table_workbook(conn, project, object_name, summary)
         return Response(
             content=content,
@@ -232,12 +248,13 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         )
 
     @app.get("/targets/{object_id}/columns", response_model=list[schemas.TargetColumnOut])
-    def target_columns(object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
-        _require_object(conn, project, object_id)
+    def target_columns(request: Request, object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
+        _require_object(conn, project, object_id, request.app.state.catalog_cache)
         return _api_columns(conn, project, object_id)
 
     @app.get("/lineage/upstream", response_model=schemas.UpstreamOut)
     def upstream(
+        request: Request,
         step_id: Optional[str] = None,
         project: Optional[str] = None,
         object_id: Optional[str] = None,
@@ -249,8 +266,8 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
             return {"choices": get_upstream_choices(conn, step_id)}
         if project is None or object_id is None or column_id is None:
             raise ApiError(400, "INVALID_REQUEST", "Provide step_id, or project, object_id and column_id.")
-        _require_column(conn, project, object_id, column_id)
-        pairs = target_column_pairs(conn, project, object_id, column_id)
+        _require_column(conn, project, object_id, column_id, request.app.state.catalog_cache)
+        pairs = target_column_pairs(conn, project, object_id, column_id, request.app.state.catalog_cache)
         if pairs:
             return {
                 "choices": [
@@ -263,6 +280,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
 
     @app.get("/lineage/ultimate-sources", response_model=schemas.UltimateSourcesOut)
     def ultimate_sources(
+        request: Request,
         project: str = Query(...),
         object_id: str = Query(...),
         column_id: str = Query(...),
@@ -270,8 +288,9 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         session_id: str = Header("shared", alias="X-Session-Id", max_length=128),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
-        _require_column(conn, project, object_id, column_id)
-        pairs = target_column_pairs(conn, project, object_id, column_id)
+        cache = request.app.state.catalog_cache
+        _require_column(conn, project, object_id, column_id, cache)
+        pairs = target_column_pairs(conn, project, object_id, column_id, cache)
         if pairs:
             if step_id:
                 root = conn.execute(
@@ -323,13 +342,15 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
 
     @app.get("/lineage/graph", response_model=schemas.ColumnGraphOut)
     def column_graph(
+        request: Request,
         project: str = Query(...),
         object_id: str = Query(...),
         column_id: str = Query(...),
         conn: sqlite3.Connection = Depends(get_conn),
     ):
-        _require_column(conn, project, object_id, column_id)
-        if _has_target_components(conn) and target_column_pairs(conn, project, object_id, column_id):
+        cache = request.app.state.catalog_cache
+        _require_column(conn, project, object_id, column_id, cache)
+        if _has_target_components(conn) and target_column_pairs(conn, project, object_id, column_id, cache):
             return build_target_graph(conn, project, object_id, column_id)
         return build_column_graph(conn, project, object_id, column_id)
 
@@ -343,7 +364,9 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
         registry = _registry(request)
         if registry is None:
             return []
-        return find_continuations(registry, project, object_name, column_name)
+        return find_continuations(
+            registry, project, object_name, column_name, cache=request.app.state.catalog_cache
+        )
 
     @app.get("/lineage/remaining-depth", response_model=schemas.RemainingDepthOut)
     def remaining_depth(step_id: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):

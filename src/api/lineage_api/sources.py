@@ -4,12 +4,12 @@ All steps of the selected target are loaded once, then every step is mapped to t
 terminal sources reachable below it, so branch selection filters the right panel without
 touching the database again.
 """
-import os
 import sqlite3
 import threading
 from collections import OrderedDict
 from typing import Any
 
+from lineage_api.db import db_fingerprint
 from lineage_api.graph import StepGraph
 from lineage_api.upstream import StepNotFound
 
@@ -112,16 +112,6 @@ def sources_for_step(resolved: dict[str, Any], step_id: str | None = None) -> li
     except KeyError:
         raise StepNotFound(step_id) from None
     return [t for t in resolved["terminal_sources"] if t["terminal_id"] in wanted]
-
-
-def db_fingerprint(conn: sqlite3.Connection) -> tuple:
-    """Identity of the lineage DB; changes when the file is regenerated or replaced."""
-    row = conn.execute("PRAGMA database_list").fetchone()
-    path = row[2] if row else ""
-    if not path:
-        return ("memory", id(conn))
-    st = os.stat(path)
-    return (os.path.realpath(path), st.st_mtime_ns, st.st_size)
 
 
 class TargetSourceCache:

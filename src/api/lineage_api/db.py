@@ -1,9 +1,20 @@
 """Read-only access to the generated lineage database."""
+import os
 import sqlite3
 from pathlib import Path
 from urllib.parse import quote
 
 ENV_DB_PATH = "LINEAGE_DB"
+
+
+def db_fingerprint(conn: sqlite3.Connection) -> tuple:
+    """Identity of the lineage DB; changes when the file is regenerated or replaced."""
+    row = conn.execute("PRAGMA database_list").fetchone()
+    path = row[2] if row else ""
+    if not path:
+        return ("memory", id(conn))
+    st = os.stat(path)
+    return (os.path.realpath(path), st.st_mtime_ns, st.st_size)
 
 REQUIRED_COLUMNS = {
     "business_lineage_step": {

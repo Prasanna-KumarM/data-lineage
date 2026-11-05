@@ -6,6 +6,7 @@ from lineage_api.catalog import list_target_columns as list_catalog_columns
 from lineage_api.catalog import list_target_objects
 from lineage_api.db import check_schema, open_readonly
 from lineage_api.target_catalog import (
+    TargetCatalogCache,
     _has_target_components,
     list_target_columns as list_component_columns,
     target_column_id,
@@ -14,7 +15,8 @@ from lineage_api.target_catalog import (
 
 
 def find_continuations(
-    registry: Any, project: str, object_name: str, column_name: str
+    registry: Any, project: str, object_name: str, column_name: str,
+    cache: TargetCatalogCache | None = None,
 ) -> list[dict[str, Any]]:
     """Other ready projects where object_name.column_name is a target column with lineage."""
     found: list[dict[str, Any]] = []
@@ -25,7 +27,7 @@ def find_continuations(
         conn = open_readonly(entry["path"])
         try:
             check_schema(conn)
-            match = _match(conn, other, object_name, column_name)
+            match = _match(conn, other, object_name, column_name, cache)
         except sqlite3.Error:
             match = None
         finally:
@@ -35,9 +37,12 @@ def find_continuations(
     return found
 
 
-def _match(conn: sqlite3.Connection, project: str, object_name: str, column_name: str) -> dict[str, Any] | None:
+def _match(
+    conn: sqlite3.Connection, project: str, object_name: str, column_name: str,
+    cache: TargetCatalogCache | None = None,
+) -> dict[str, Any] | None:
     if _has_target_components(conn):
-        for target in target_definitions(conn, project):
+        for target in target_definitions(conn, project, cache):
             if target["object_name"] != object_name:
                 continue
             if any(c["column_name"] == column_name for c in list_component_columns(conn, project, target["object_id"])):
