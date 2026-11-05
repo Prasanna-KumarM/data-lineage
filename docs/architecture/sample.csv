@@ -102,3 +102,28 @@ Referrer policy
 strict-origin-when-cross-origin
 
 
+This program requires root on OSX.
+Try running again with elevated permissions by going 'sudo !!'
+(.venv) af17sq@APM3LH222V992TX data-lineage % sudo py-spy dump --pid 29453
+Password:
+Process 29453: /opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python -m uvicorn lineage_api.app:app --host 127.0.0.1 --port 8000 --reload
+Python v3.14.7 (/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/Resources/Python.app/Contents/MacOS/Python)
+
+Thread 0x1F9B161C0 (active): "MainThread"
+    Condition.wait (threading.py:373)
+    Event.wait (threading.py:670)
+    BaseReload.pause (uvicorn/supervisors/basereload.py:63)
+    StatReload.should_restart (uvicorn/supervisors/statreload.py:29)
+    BaseReload.__next__ (uvicorn/supervisors/basereload.py:70)
+    BaseReload.run (uvicorn/supervisors/basereload.py:51)
+    run (uvicorn/main.py:627)
+    main (uvicorn/main.py:448)
+    Context.invoke (click/core.py:910)
+    Command.invoke (click/core.py:1415)
+    Command.main (click/core.py:1552)
+    Command.__call__ (click/core.py:1631)
+    <module> (uvicorn/__main__.py:4)
+    _run_code (<frozen runpy>:88)
+    _run_module_as_main (<frozen runpy>:203)
+
+
