@@ -89,7 +89,7 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
       {projects.status === 'error' && <ErrorNotice error={projects.error} onRetry={projects.reload} />}
 
       {projects.status === 'success' && names.length === 0 && <p className="status">No projects available.</p>}
-      {projects.status === 'success' && names.length > 0 && (view === 'developer' || Boolean(route.objectId)) && (
+      {projects.status === 'success' && names.length > 0 && view === 'developer' && !route.objectId && (
         <div className="field project-field">
           <label htmlFor="summary-project">Project</label>
           <select
@@ -146,7 +146,10 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
           {summary.status === 'success' && (
             <>
               <header className="table-head">
-                <h2>{objectLabel(summary.data.object, [summary.data.object])}</h2>
+                <h2>
+                  {project && <span className="table-project">{project} / </span>}
+                  {objectLabel(summary.data.object, [summary.data.object])}
+                </h2>
                 {projectMeta?.value_chain && <p className="table-subtitle">{catalogSubtitle(projectMeta)}</p>}
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage

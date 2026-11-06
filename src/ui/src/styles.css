@@ -876,6 +876,13 @@ button.dot:focus-visible {
   margin: 0;
 }
 
+.table-project {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #7b8794;
+  margin-right: 8px;
+}
+
 .table-head p {
   margin: 4px 0 0;
 }
