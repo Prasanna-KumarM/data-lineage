@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bindProject, type ApiClient } from '../api/client'
 import type { TargetObject } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -20,10 +20,12 @@ interface Props {
   audience: 'business' | 'developer' | null
   onAudienceChange: (audience: 'business' | 'developer') => void
   onCatalogAvailable: (available: boolean) => void
+  /** Project/catalog notes, shown through the info icon in the topbar. */
+  onNotesChange: (notes: string[]) => void
 }
 
 /** Landing page: find a target table, then see every column with its paths and ultimate sources. */
-export function SummaryPage({ client, route, audience, onAudienceChange, onCatalogAvailable }: Props) {
+export function SummaryPage({ client, route, audience, onAudienceChange, onCatalogAvailable, onNotesChange }: Props) {
   const navigate = useNavigate()
   const projects = useAsync((signal) => client.projects(signal), 'projects')
   const [chosenProject, setChosenProject] = useState<string | null>(null)
@@ -31,7 +33,6 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
   const closeGraph = useCallback(() => setGraphColumn(null), [])
   const [detailStep, setDetailStep] = useState<string | null>(null)
   const [developer, setDeveloper] = useState(false)
-  const [notesOpen, setNotesOpen] = useState(false)
 
   const entries = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false) : []
   const names = entries.map((p) => p.project_name)
@@ -41,7 +42,9 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
   // Business view (cataloged tables only) is the default when a catalog exists;
   // the developer view lists every table of every project, as before.
   // The audience toggle lives in the topbar; its state is owned by App.
-  const allProjects = projects.status === 'success' ? projects.data : []
+  // useMemo keeps a stable empty array so the notes effect below does not loop while loading.
+  const projectsData = projects.status === 'success' ? projects.data : null
+  const allProjects = useMemo(() => projectsData ?? [], [projectsData])
   const hasCatalog = allProjects.some((p) => p.business_tables !== undefined)
   const view: 'business' | 'developer' = hasCatalog ? (audience ?? 'business') : 'developer'
 
@@ -50,11 +53,18 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
     if (hasCatalog && audience === null) onAudienceChange('business')
   }, [hasCatalog, audience, onCatalogAvailable, onAudienceChange])
 
-  // Project problems and catalog drift, tucked behind one collapsible info bar.
-  const notes = [
-    ...allProjects.filter((p) => p.ready === false).map((p) => `${p.project_name}: ${p.problem}`),
-    ...allProjects.flatMap((p) => p.catalog_notes ?? []),
-  ]
+  // Project problems and catalog drift, shown through the info icon in the topbar.
+  const notes = useMemo(
+    () => [
+      ...allProjects.filter((p) => p.ready === false).map((p) => `${p.project_name}: ${p.problem}`),
+      ...allProjects.flatMap((p) => p.catalog_notes ?? []),
+    ],
+    [allProjects],
+  )
+  useEffect(() => {
+    onNotesChange(notes)
+    return () => onNotesChange([])
+  }, [notes, onNotesChange])
 
   useEffect(() => {
     setGraphColumn(null)
@@ -96,29 +106,6 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
               </option>
             ))}
           </select>
-        </div>
-      )}
-      {notes.length > 0 && (
-        <div className="info-bar">
-          <button
-            type="button"
-            className="info-toggle"
-            aria-expanded={notesOpen}
-            aria-label={`${notes.length} ${notes.length === 1 ? 'note' : 'notes'} about the listed projects`}
-            title="Notes about the listed projects"
-            onClick={() => setNotesOpen((open) => !open)}
-          >
-            <span aria-hidden="true">ⓘ</span>
-          </button>
-          {notesOpen && (
-            <ul className="info-notes">
-              {notes.map((note) => (
-                <li key={note} className="status note">
-                  {note}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
       {view === 'developer' && projects.status === 'success' && names.length > 1 && !project && (

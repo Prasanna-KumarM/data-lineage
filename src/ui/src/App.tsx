@@ -18,6 +18,9 @@ export default function App({ client: injected }: Props) {
   // Business/developer audience for the summary landing page; the toggle sits in the topbar.
   const [audience, setAudience] = useState<'business' | 'developer' | null>(null)
   const [catalogAvailable, setCatalogAvailable] = useState(false)
+  // Project/catalog notes reported by the summary page; the info icon sits in the topbar.
+  const [notes, setNotes] = useState<string[]>([])
+  const [notesOpen, setNotesOpen] = useState(false)
   useEffect(() => {
     const onChange = () => setNavigations((n) => n + 1)
     window.addEventListener('hashchange', onChange)
@@ -50,6 +53,29 @@ export default function App({ client: injected }: Props) {
             </button>
           </div>
         )}
+        {route.name === 'summary' && notes.length > 0 && (
+          <div className="info-anchor">
+            <button
+              type="button"
+              className="info-toggle"
+              aria-expanded={notesOpen}
+              aria-label={`${notes.length} ${notes.length === 1 ? 'note' : 'notes'} about the listed projects`}
+              title="Notes about the listed projects"
+              onClick={() => setNotesOpen((open) => !open)}
+            >
+              <span aria-hidden="true">ⓘ</span>
+            </button>
+            {notesOpen && (
+              <ul className="info-notes info-dropdown">
+                {notes.map((note) => (
+                  <li key={note} className="status note">
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
       </header>
       {route.name === 'lineage' ? (
         <LineagePage key={navigations} client={client} route={route} />
@@ -60,6 +86,7 @@ export default function App({ client: injected }: Props) {
           audience={audience}
           onAudienceChange={setAudience}
           onCatalogAvailable={setCatalogAvailable}
+          onNotesChange={setNotes}
         />
       )}
     </div>

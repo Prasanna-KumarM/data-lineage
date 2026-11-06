@@ -763,6 +763,33 @@ button.dot:focus-visible {
   gap: 10px;
 }
 
+.info-anchor {
+  position: relative;
+  margin-left: auto;
+}
+
+.view-toggle + .info-anchor {
+  margin-left: 0;
+}
+
+.info-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: 340px;
+  margin: 0;
+  padding: 10px 14px 10px 30px;
+  background: #fff;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  z-index: 30;
+}
+
+.info-dropdown li + li {
+  margin-top: 6px;
+}
+
 .info-toggle {
   width: 26px;
   height: 26px;
