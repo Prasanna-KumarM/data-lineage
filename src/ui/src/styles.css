@@ -770,6 +770,11 @@ button.dot:focus-visible {
   margin: 4px 0 12px;
 }
 
+.topbar-toggle {
+  margin: 0 0 0 auto;
+  flex-shrink: 0;
+}
+
 .view-toggle button {
   padding: 6px 16px;
   font: inherit;

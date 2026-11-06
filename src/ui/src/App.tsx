@@ -14,6 +14,10 @@ export default function App({ client: injected }: Props) {
 
   // Counts real navigations only; the walkthrough rewriting its own address must not restart it.
   const [navigations, setNavigations] = useState(0)
+
+  // Business/developer audience for the summary landing page; the toggle sits in the topbar.
+  const [audience, setAudience] = useState<'business' | 'developer' | null>(null)
+  const [catalogAvailable, setCatalogAvailable] = useState(false)
   useEffect(() => {
     const onChange = () => setNavigations((n) => n + 1)
     window.addEventListener('hashchange', onChange)
@@ -36,11 +40,27 @@ export default function App({ client: injected }: Props) {
             Walkthrough
           </a>
         </nav>
+        {route.name === 'summary' && !route.objectId && catalogAvailable && audience !== null && (
+          <div className="view-toggle topbar-toggle" role="group" aria-label="Audience">
+            <button type="button" aria-pressed={audience === 'business'} onClick={() => setAudience('business')}>
+              Business
+            </button>
+            <button type="button" aria-pressed={audience === 'developer'} onClick={() => setAudience('developer')}>
+              Developer
+            </button>
+          </div>
+        )}
       </header>
       {route.name === 'lineage' ? (
         <LineagePage key={navigations} client={client} route={route} />
       ) : (
-        <SummaryPage client={client} route={route} />
+        <SummaryPage
+          client={client}
+          route={route}
+          audience={audience}
+          onAudienceChange={setAudience}
+          onCatalogAvailable={setCatalogAvailable}
+        />
       )}
     </div>
   )

@@ -16,10 +16,14 @@ type SummaryRoute = Extract<Route, { name: 'summary' }>
 interface Props {
   client: ApiClient
   route: SummaryRoute
+  /** Audience toggle state, owned by App so the control can sit in the topbar. */
+  audience: 'business' | 'developer' | null
+  onAudienceChange: (audience: 'business' | 'developer') => void
+  onCatalogAvailable: (available: boolean) => void
 }
 
 /** Landing page: find a target table, then see every column with its paths and ultimate sources. */
-export function SummaryPage({ client, route }: Props) {
+export function SummaryPage({ client, route, audience, onAudienceChange, onCatalogAvailable }: Props) {
   const navigate = useNavigate()
   const projects = useAsync((signal) => client.projects(signal), 'projects')
   const [chosenProject, setChosenProject] = useState<string | null>(null)
@@ -35,10 +39,15 @@ export function SummaryPage({ client, route }: Props) {
 
   // Business view (cataloged tables only) is the default when a catalog exists;
   // the developer view lists every table of every project, as before.
-  const [audience, setAudience] = useState<'business' | 'developer' | null>(null)
+  // The audience toggle lives in the topbar; its state is owned by App.
   const allProjects = projects.status === 'success' ? projects.data : []
   const hasCatalog = allProjects.some((p) => p.business_tables !== undefined)
-  const view: 'business' | 'developer' = audience ?? (hasCatalog ? 'business' : 'developer')
+  const view: 'business' | 'developer' = hasCatalog ? (audience ?? 'business') : 'developer'
+
+  useEffect(() => {
+    onCatalogAvailable(hasCatalog)
+    if (hasCatalog && audience === null) onAudienceChange('business')
+  }, [hasCatalog, audience, onCatalogAvailable, onAudienceChange])
 
   useEffect(() => {
     setGraphColumn(null)
@@ -95,16 +104,6 @@ export function SummaryPage({ client, route }: Props) {
             {note}
           </p>
         )),
-      )}
-      {!route.objectId && hasCatalog && (
-        <div className="view-toggle" role="group" aria-label="Audience">
-          <button type="button" aria-pressed={view === 'business'} onClick={() => setAudience('business')}>
-            Business
-          </button>
-          <button type="button" aria-pressed={view === 'developer'} onClick={() => setAudience('developer')}>
-            Developer
-          </button>
-        </div>
       )}
       {view === 'developer' && projects.status === 'success' && names.length > 1 && !project && (
         <p className="status">Choose a project to see its target tables.</p>
