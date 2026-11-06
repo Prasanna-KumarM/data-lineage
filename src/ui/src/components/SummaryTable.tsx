@@ -155,6 +155,19 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail 
   }
   const withLineage = summary.columns.filter((c) => c.has_lineage).map((c) => c.column_id)
 
+  // Column-wide toggles act on the rows currently visible (after filtering).
+  const visibleLineage = rows.filter((c) => c.has_lineage).map((c) => c.column_id)
+  const allPathsOpen = visibleLineage.length > 0 && visibleLineage.every((id) => openPaths.has(id))
+  const allSourcesOpen = visibleLineage.length > 0 && visibleLineage.every((id) => openSources.has(id))
+  const toggleColumn = (set: Set<string>, setter: (s: Set<string>) => void, expand: boolean) => {
+    const next = new Set(set)
+    for (const id of visibleLineage) {
+      if (expand) next.add(id)
+      else next.delete(id)
+    }
+    setter(next)
+  }
+
   return (
     <section className="summary" aria-label="Table summary">
       <div className="summary-toolbar">
@@ -200,8 +213,34 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail 
         <thead>
           <tr>
             <th scope="col">Column</th>
-            <th scope="col">Paths</th>
-            <th scope="col">Ultimate sources</th>
+            <th scope="col">
+              <span className="th-label">
+                Paths
+                <button
+                  type="button"
+                  className="column-toggle"
+                  disabled={visibleLineage.length === 0}
+                  aria-label={allPathsOpen ? 'Collapse paths column' : 'Expand paths column'}
+                  onClick={() => toggleColumn(openPaths, setOpenPaths, !allPathsOpen)}
+                >
+                  {allPathsOpen ? 'Collapse' : 'Expand'}
+                </button>
+              </span>
+            </th>
+            <th scope="col">
+              <span className="th-label">
+                Ultimate sources
+                <button
+                  type="button"
+                  className="column-toggle"
+                  disabled={visibleLineage.length === 0}
+                  aria-label={allSourcesOpen ? 'Collapse sources column' : 'Expand sources column'}
+                  onClick={() => toggleColumn(openSources, setOpenSources, !allSourcesOpen)}
+                >
+                  {allSourcesOpen ? 'Collapse' : 'Expand'}
+                </button>
+              </span>
+            </th>
           </tr>
         </thead>
         <tbody>
