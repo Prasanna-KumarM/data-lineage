@@ -19,6 +19,8 @@ class ProjectOut(BaseModel):
     source_system: Optional[str] = None
     target_system: Optional[str] = None
     business_tables: Optional[list[str]] = None
+    # Row position in the catalog CSV; the UI preselects the first row's filters.
+    catalog_order: Optional[int] = None
     # Warnings when the catalog and the databases disagree.
     catalog_notes: Optional[list[str]] = None
 

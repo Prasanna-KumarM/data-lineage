@@ -52,5 +52,7 @@ class BusinessCatalog:
                     "business_tables": [
                         t.strip() for t in (row.get("tables") or "").split("|") if t.strip()
                     ],
+                    # Position in the CSV; the UI preselects the filters of the first row.
+                    "catalog_order": len(out),
                 }
         return out

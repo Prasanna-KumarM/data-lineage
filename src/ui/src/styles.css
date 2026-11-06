@@ -857,6 +857,12 @@ button.dot:focus-visible {
   font-weight: 600;
 }
 
+.business-filters select,
+.business-filters input {
+  width: 220px;
+  box-sizing: border-box;
+}
+
 .project-field {
   max-width: 320px;
   margin-bottom: 16px;

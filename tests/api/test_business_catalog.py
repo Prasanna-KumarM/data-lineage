@@ -40,6 +40,7 @@ def test_projects_entries_gain_the_business_mapping(outputs, tmp_path):
     assert entry["source_system"] == "CLO"
     assert entry["target_system"] == "GFRS"
     assert entry["business_tables"] == ["PAR_GFRS_CLO_TRADES"]
+    assert entry["catalog_order"] == 0
     assert "catalog_notes" not in entry
 
 
@@ -59,6 +60,7 @@ def test_catalog_row_without_database_becomes_a_ghost_entry(outputs, tmp_path):
     assert ghost["ready"] is False and ghost["startable"] is False
     assert "no database" in ghost["problem"]
     assert ghost["value_chain"] == "Trade Finance"
+    assert ghost["catalog_order"] == 1
 
 
 def test_ready_project_without_catalog_row_is_noted(outputs, tmp_path):

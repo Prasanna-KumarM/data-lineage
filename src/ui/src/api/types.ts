@@ -13,6 +13,8 @@ export interface Project {
   source_system?: string
   target_system?: string
   business_tables?: string[]
+  /** Row position in the catalog CSV; the first row preselects the filters. */
+  catalog_order?: number
   /** Warnings when the catalog and the databases disagree. */
   catalog_notes?: string[]
 }

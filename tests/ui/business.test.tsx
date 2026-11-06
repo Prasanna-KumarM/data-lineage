@@ -21,14 +21,15 @@ const table = (id: string, name: string, columns: number): TargetObject => ({
 })
 
 const catalogProjects: Project[] = [
-  { project_name: 'SP_CLO', value_chain: 'Lending', source_system: 'CLO', target_system: 'GFRS', business_tables: ['PAR_GFRS_CLO_TRADES'] },
-  { project_name: 'SP_LIQ', value_chain: 'Lending', source_system: 'Loan IQ', target_system: 'GFRS', business_tables: ['PAR_GFRS_LIQ_TRADES'] },
+  { project_name: 'SP_CLO', value_chain: 'Lending', source_system: 'CLO', target_system: 'GFRS', business_tables: ['PAR_GFRS_CLO_TRADES'], catalog_order: 2 },
+  { project_name: 'SP_LIQ', value_chain: 'Lending', source_system: 'Loan IQ', target_system: 'GFRS', business_tables: ['PAR_GFRS_LIQ_TRADES'], catalog_order: 0 },
   {
     project_name: 'SP_TFS_TIP',
     value_chain: 'Trade Finance',
     source_system: 'Ti Plus',
     target_system: 'GFRS',
     business_tables: ['PAR_GFRS_TFS_TRADES', 'PAR_GFRS_TFS_CHARGES'],
+    catalog_order: 1,
     ready: false,
     startable: false,
     problem: 'Listed in the catalog, but no database was found.',
@@ -87,6 +88,13 @@ describe('business view of the summary landing page', () => {
     const names = listNames()
     expect(names.some((t) => t.includes('PAR_GFRS_CLO_TRADES'))).toBe(true)
     expect(names.some((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toBe(true)
+  })
+
+  it('preselects the value chain and target system of the first catalog row', async () => {
+    show(client, '#/summary')
+    await screen.findByText(/PAR_GFRS_LIQ_TRADES/)
+    expect((screen.getByLabelText('Value chain') as HTMLSelectElement).value).toBe('Lending')
+    expect((screen.getByLabelText('Target system') as HTMLSelectElement).value).toBe('GFRS')
   })
 
   it('filters tables by target system', async () => {

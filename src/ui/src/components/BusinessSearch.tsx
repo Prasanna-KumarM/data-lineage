@@ -19,9 +19,25 @@ export const catalogSubtitle = (p: Project) =>
 /** Business landing: only the cataloged (e.g. GFRS-bound) tables, browsable by value chain and target system. */
 export function BusinessSearch({ client, entries, onChoose }: Props) {
   const [text, setText] = useState('')
-  const [chain, setChain] = useState('')
-  const [targetSystem, setTargetSystem] = useState('')
+  const [chain, setChain] = useState<string | null>(null)
+  const [targetSystem, setTargetSystem] = useState<string | null>(null)
   const query = useDebounced(text.trim())
+
+  // The first catalog.csv row preselects the filters; picking 'All' overrides back.
+  const firstEntry = useMemo(
+    () =>
+      entries.reduce<Project | undefined>(
+        (a, b) =>
+          a === undefined ||
+          (b.catalog_order ?? Number.MAX_SAFE_INTEGER) < (a.catalog_order ?? Number.MAX_SAFE_INTEGER)
+            ? b
+            : a,
+        undefined,
+      ),
+    [entries],
+  )
+  const chainValue = chain ?? firstEntry?.value_chain ?? ''
+  const systemValue = targetSystem ?? firstEntry?.target_system ?? ''
 
   const chains = useMemo(
     () => [...new Set(entries.map((p) => p.value_chain).filter((v): v is string => Boolean(v)))].sort(),
@@ -33,7 +49,7 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
   )
 
   const visible = entries.filter(
-    (p) => (!chain || p.value_chain === chain) && (!targetSystem || p.target_system === targetSystem),
+    (p) => (!chainValue || p.value_chain === chainValue) && (!systemValue || p.target_system === systemValue),
   )
   // Tables can only be read from projects whose database is up.
   const fetchable = visible.filter((p) => p.ready !== false && p.startable !== false)
@@ -65,7 +81,7 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
       <div className="business-filters">
         <label>
           Value chain
-          <select value={chain} onChange={(e) => setChain(e.target.value)}>
+          <select value={chainValue} onChange={(e) => setChain(e.target.value)}>
             <option value="">All value chains</option>
             {chains.map((c) => (
               <option key={c} value={c}>
@@ -76,7 +92,7 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
         </label>
         <label>
           Target system
-          <select value={targetSystem} onChange={(e) => setTargetSystem(e.target.value)}>
+          <select value={systemValue} onChange={(e) => setTargetSystem(e.target.value)}>
             <option value="">All target systems</option>
             {systems.map((s) => (
               <option key={s} value={s}>
