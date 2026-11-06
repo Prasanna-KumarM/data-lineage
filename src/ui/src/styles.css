@@ -880,6 +880,11 @@ button.dot:focus-visible {
   margin: 4px 0 0;
 }
 
+.table-subtitle {
+  font-size: 0.85rem;
+  color: #7b8794;
+}
+
 .table-totals {
   font-weight: 600;
 }

@@ -3,6 +3,7 @@ import type { ApiClient } from '../api/client'
 import type { Project, TargetObject } from '../api/types'
 import { useDebounced } from '../hooks/useDebounced'
 import { useAsync } from '../hooks/useAsync'
+import { catalogSubtitle } from './BusinessSearch'
 import { objectLabel } from './objectLabel'
 import { ErrorNotice, LoadingNotice } from './Notices'
 
@@ -46,9 +47,7 @@ export function TableSearch({ client, project, meta, onChoose }: Props) {
                 <button type="button" className="table-result" onClick={() => onChoose(object)}>
                   <span className="table-result-name">{objectLabel(object, results.data)}</span>
                   {meta?.value_chain && (
-                    <span className="table-result-sub">
-                      {[meta.value_chain, meta.source_system].filter(Boolean).join(' · ')}
-                    </span>
+                    <span className="table-result-sub">{catalogSubtitle(meta)}</span>
                   )}
                   <span className="card-meta">
                     {object.column_count} {object.column_count === 1 ? 'column' : 'columns'}

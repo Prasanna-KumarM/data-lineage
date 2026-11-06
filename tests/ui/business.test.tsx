@@ -69,7 +69,7 @@ describe('business view of the summary landing page', () => {
     expect(names.some((t) => t.includes('PAR_GFRS_CLO_TRADES'))).toBe(true)
     expect(names.some((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toBe(true)
     expect(names.some((t) => t.includes('CM_CLO_INTERNAL'))).toBe(false)
-    expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('Lending · Loan IQ · SP_LIQ')
+    expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('Lending · Loan IQ · GFRS · SP_LIQ')
     expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('226 columns')
     expect(screen.getByRole('button', { name: 'Business' }).getAttribute('aria-pressed')).toBe('true')
     await user.click(screen.getByRole('button', { name: /notes? about the listed projects/ }))

@@ -7,7 +7,7 @@ import { DetailDrawer } from '../components/DetailDrawer'
 import { ErrorNotice, LoadingNotice } from '../components/Notices'
 import { GraphDialog } from '../components/GraphDialog'
 import { objectLabel } from '../components/objectLabel'
-import { BusinessSearch } from '../components/BusinessSearch'
+import { BusinessSearch, catalogSubtitle } from '../components/BusinessSearch'
 import { SummaryTable } from '../components/SummaryTable'
 import { TableSearch } from '../components/TableSearch'
 
@@ -38,6 +38,7 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
   const names = entries.map((p) => p.project_name)
   const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
   const project = route.project ?? chosenProject ?? onlyUsable
+  const projectMeta = projects.status === 'success' ? projects.data.find((p) => p.project_name === project) : undefined
 
   // Business view (cataloged tables only) is the default when a catalog exists;
   // the developer view lists every table of every project, as before.
@@ -116,7 +117,7 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
         <TableSearch
           client={client}
           project={project}
-          meta={allProjects.find((p) => p.project_name === project)}
+          meta={projectMeta}
           onChoose={open}
         />
       )}
@@ -146,6 +147,7 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
             <>
               <header className="table-head">
                 <h2>{objectLabel(summary.data.object, [summary.data.object])}</h2>
+                {projectMeta?.value_chain && <p className="table-subtitle">{catalogSubtitle(projectMeta)}</p>}
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage
                 </p>

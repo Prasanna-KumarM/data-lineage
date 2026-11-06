@@ -13,7 +13,8 @@ interface Props {
   onChoose: (object: TargetObject, project: string) => void
 }
 
-export const catalogSubtitle = (p: Project) => [p.value_chain, p.source_system, p.project_name].filter(Boolean).join(' · ')
+export const catalogSubtitle = (p: Project) =>
+  [p.value_chain, p.source_system, p.target_system, p.project_name].filter(Boolean).join(' · ')
 
 /** Business landing: only the cataloged (e.g. GFRS-bound) tables, browsable by value chain and target system. */
 export function BusinessSearch({ client, entries, onChoose }: Props) {
