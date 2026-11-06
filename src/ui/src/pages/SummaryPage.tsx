@@ -7,6 +7,7 @@ import { DetailDrawer } from '../components/DetailDrawer'
 import { ErrorNotice, LoadingNotice } from '../components/Notices'
 import { GraphDialog } from '../components/GraphDialog'
 import { objectLabel } from '../components/objectLabel'
+import { BusinessSearch } from '../components/BusinessSearch'
 import { SummaryTable } from '../components/SummaryTable'
 import { TableSearch } from '../components/TableSearch'
 
@@ -32,6 +33,13 @@ export function SummaryPage({ client, route }: Props) {
   const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
   const project = route.project ?? chosenProject ?? onlyUsable
 
+  // Business view (cataloged tables only) is the default when a catalog exists;
+  // the developer view lists every table of every project, as before.
+  const [audience, setAudience] = useState<'business' | 'developer' | null>(null)
+  const allProjects = projects.status === 'success' ? projects.data : []
+  const hasCatalog = allProjects.some((p) => p.business_tables !== undefined)
+  const view: 'business' | 'developer' = audience ?? (hasCatalog ? 'business' : 'developer')
+
   useEffect(() => {
     setGraphColumn(null)
     setDetailStep(null)
@@ -54,7 +62,7 @@ export function SummaryPage({ client, route }: Props) {
       {projects.status === 'error' && <ErrorNotice error={projects.error} onRetry={projects.reload} />}
 
       {projects.status === 'success' && names.length === 0 && <p className="status">No projects available.</p>}
-      {projects.status === 'success' && names.length > 0 && (
+      {projects.status === 'success' && names.length > 0 && (view === 'developer' || Boolean(route.objectId)) && (
         <div className="field project-field">
           <label htmlFor="summary-project">Project</label>
           <select
@@ -74,18 +82,51 @@ export function SummaryPage({ client, route }: Props) {
           </select>
         </div>
       )}
-      {entries
+      {allProjects
         .filter((p) => p.ready === false)
         .map((p) => (
           <p key={p.project_name} className="status note">
             {p.project_name}: {p.problem}
           </p>
         ))}
-      {projects.status === 'success' && names.length > 1 && !project && (
+      {allProjects.flatMap((p) =>
+        (p.catalog_notes ?? []).map((note) => (
+          <p key={`${p.project_name}:${note}`} className="status note">
+            {note}
+          </p>
+        )),
+      )}
+      {!route.objectId && hasCatalog && (
+        <div className="view-toggle" role="group" aria-label="Audience">
+          <button type="button" aria-pressed={view === 'business'} onClick={() => setAudience('business')}>
+            Business
+          </button>
+          <button type="button" aria-pressed={view === 'developer'} onClick={() => setAudience('developer')}>
+            Developer
+          </button>
+        </div>
+      )}
+      {view === 'developer' && projects.status === 'success' && names.length > 1 && !project && (
         <p className="status">Choose a project to see its target tables.</p>
       )}
 
-      {project && !route.objectId && <TableSearch client={client} project={project} onChoose={open} />}
+      {view === 'developer' && project && !route.objectId && (
+        <TableSearch
+          client={client}
+          project={project}
+          meta={allProjects.find((p) => p.project_name === project)}
+          onChoose={open}
+        />
+      )}
+      {view === 'business' && !route.objectId && projects.status === 'success' && (
+        <BusinessSearch
+          client={client}
+          entries={allProjects.filter((p) => p.business_tables !== undefined)}
+          onChoose={(object, projectName) =>
+            navigate({ name: 'summary', project: projectName, objectId: object.object_id })
+          }
+        />
+      )}
 
       {project && route.objectId && (
         <>

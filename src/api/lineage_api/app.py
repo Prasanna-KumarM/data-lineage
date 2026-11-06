@@ -23,6 +23,7 @@ from lineage_api.db import (
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
 from lineage_api.lineage_graph import build_column_graph, build_target_graph
+from lineage_api.business_catalog import BusinessCatalog
 from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
 from lineage_api.summary import TableSummaryCache
@@ -124,7 +125,7 @@ def _require_column(
         raise ApiError(404, "TARGET_COLUMN_NOT_FOUND", f"Unknown target column: {column_id}")
 
 
-def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None) -> FastAPI:
+def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None, catalog_path: Optional[str] = None) -> FastAPI:
     app = FastAPI(title="Data Lineage API", version="1.0.0")
     app.state.db_path = db_path
     app.state.outputs_dir = outputs_dir
@@ -132,6 +133,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
     app.state.source_cache = TargetSourceCache()
     app.state.summary_cache = TableSummaryCache()
     app.state.catalog_cache = TargetCatalogCache()
+    app.state.business_catalog = BusinessCatalog(catalog_path)
 
     @app.exception_handler(ApiError)
     def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -177,13 +179,35 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None)
     def projects(request: Request):
         registry = _registry(request)
         if registry is not None:
-            return [
-                {"project_name": e["project_name"], "folder": e["folder"],
-                 **({} if e["ready"] else {"ready": False, "problem": e["problem"]}),
-                 **({"application": e["application"]} if e.get("application") else {}),
-                 **({} if e.get("startable", True) else {"startable": False})}
-                for e in registry.entries()
-            ]
+            catalog = request.app.state.business_catalog.entries()
+            reg_entries = registry.entries()
+            out: list[dict] = []
+            for e in reg_entries:
+                row: dict = {
+                    "project_name": e["project_name"], "folder": e["folder"],
+                    **({} if e["ready"] else {"ready": False, "problem": e["problem"]}),
+                    **({"application": e["application"]} if e.get("application") else {}),
+                    **({} if e.get("startable", True) else {"startable": False}),
+                }
+                meta = catalog.get(e["project_name"])
+                if meta is not None:
+                    row.update(meta)
+                    if e["ready"]:
+                        missing = [t for t in meta["business_tables"] if t not in (e.get("known_tables") or [])]
+                        if missing:
+                            row["catalog_notes"] = [
+                                f"Catalog table {t} was not found in {e['project_name']}." for t in missing
+                            ]
+                elif e["ready"] and catalog:
+                    row["catalog_notes"] = [
+                        f"{e['project_name']} has no catalog entry; it only shows in the developer view."
+                    ]
+                out.append(row)
+            for name, meta in catalog.items():
+                if not any(e["project_name"] == name for e in reg_entries):
+                    out.append({"project_name": name, **meta, "ready": False, "startable": False,
+                                "problem": "Listed in the catalog, but no database was found."})
+            return sorted(out, key=lambda r: r["project_name"])
         conn = open_readonly(_db_path(request))
         try:
             check_schema(conn)

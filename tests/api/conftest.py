@@ -4,6 +4,13 @@ from pathlib import Path
 
 import pytest
 
+
+@pytest.fixture(autouse=True)
+def _isolate_business_catalog(monkeypatch):
+    """Keep tests independent of the real src/aptitude_lineage/config/catalog.csv."""
+    monkeypatch.setenv("LINEAGE_CATALOG", "/nonexistent/catalog.csv")
+
+
 ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_DB = ROOT / "outputs" / "SP_CLO" / "lineage.db"
 

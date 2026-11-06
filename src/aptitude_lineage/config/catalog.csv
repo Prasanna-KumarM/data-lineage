@@ -1,0 +1,4 @@
+project,value_chain,source_system,target_system,tables
+SP_LIQ,Lending,Loan IQ,GFRS,PAR_GFRS_LIQ_TRADES
+SP_TFS_TIP,Trade Finance,Ti Plus,GFRS,PAR_GFRS_TFS_TRADES|PAR_GFRS_TFS_CHARGES
+SP_CLO,Lending,CLO,GFRS,PAR_GFRS_CLO_TRADES

@@ -8,6 +8,13 @@ export interface Project {
   startable?: boolean
   /** Application name shown instead of the project code, when configured. */
   application?: string
+  /** Business catalog mapping, when the project is listed in the catalog. */
+  value_chain?: string
+  source_system?: string
+  target_system?: string
+  business_tables?: string[]
+  /** Warnings when the catalog and the databases disagree. */
+  catalog_notes?: string[]
 }
 
 export interface BusinessProcess {

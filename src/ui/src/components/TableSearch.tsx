@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { ApiClient } from '../api/client'
-import type { TargetObject } from '../api/types'
+import type { Project, TargetObject } from '../api/types'
 import { useDebounced } from '../hooks/useDebounced'
 import { useAsync } from '../hooks/useAsync'
 import { objectLabel } from './objectLabel'
@@ -9,11 +9,13 @@ import { ErrorNotice, LoadingNotice } from './Notices'
 interface Props {
   client: ApiClient
   project: string
+  /** Catalog mapping of the chosen project, shown as context under each table name. */
+  meta?: Project
   onChoose: (object: TargetObject) => void
 }
 
 /** Search box plus the matching target tables; picking one opens that table's summary. */
-export function TableSearch({ client, project, onChoose }: Props) {
+export function TableSearch({ client, project, meta, onChoose }: Props) {
   const [text, setText] = useState('')
   const query = useDebounced(text.trim())
   const results = useAsync((signal) => client.searchTargets(project, query, signal), `search:${project}:${query}`)
@@ -43,6 +45,11 @@ export function TableSearch({ client, project, onChoose }: Props) {
               <li key={object.object_id}>
                 <button type="button" className="table-result" onClick={() => onChoose(object)}>
                   <span className="table-result-name">{objectLabel(object, results.data)}</span>
+                  {meta?.value_chain && (
+                    <span className="table-result-sub">
+                      {[meta.value_chain, meta.source_system].filter(Boolean).join(' · ')}
+                    </span>
+                  )}
                   <span className="card-meta">
                     {object.column_count} {object.column_count === 1 ? 'column' : 'columns'}
                   </span>
