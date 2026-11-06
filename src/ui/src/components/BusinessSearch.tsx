@@ -78,10 +78,10 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
 
   return (
     <section className="search" aria-label="Find a target table">
-      <div className="business-filters">
-        <label>
-          Value chain
-          <select value={chainValue} onChange={(e) => setChain(e.target.value)}>
+      <div className="selectors">
+        <div className="field">
+          <label htmlFor="value-chain">Value chain</label>
+          <select id="value-chain" value={chainValue} onChange={(e) => setChain(e.target.value)}>
             <option value="">All value chains</option>
             {chains.map((c) => (
               <option key={c} value={c}>
@@ -89,10 +89,10 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Target system
-          <select value={systemValue} onChange={(e) => setTargetSystem(e.target.value)}>
+        </div>
+        <div className="field">
+          <label htmlFor="target-system">Target system</label>
+          <select id="target-system" value={systemValue} onChange={(e) => setTargetSystem(e.target.value)}>
             <option value="">All target systems</option>
             {systems.map((s) => (
               <option key={s} value={s}>
@@ -100,17 +100,18 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
               </option>
             ))}
           </select>
-        </label>
-        <label>
-          Search target tables
+        </div>
+        <div className="field">
+          <label htmlFor="table-search">Search target tables</label>
           <input
+            id="table-search"
             type="search"
             placeholder="Type part of a table name"
             value={text}
             autoFocus
             onChange={(e) => setText(e.target.value)}
           />
-        </label>
+        </div>
       </div>
       {tables.status === 'loading' && <LoadingNotice text="Loading tables…" />}
       {tables.status === 'error' && <ErrorNotice error={tables.error} onRetry={tables.reload} />}

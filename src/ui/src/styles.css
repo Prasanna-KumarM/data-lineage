@@ -76,7 +76,8 @@ body {
   color: #52606d;
 }
 
-.field select {
+.field select,
+.search .field input {
   padding: 6px 8px;
   font-size: 0.95rem;
 }
@@ -840,27 +841,6 @@ button.dot:focus-visible {
 .view-toggle button[aria-pressed='true'] {
   background: #1d4ed8;
   color: #fff;
-}
-
-.business-filters {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px;
-}
-
-.business-filters label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.business-filters select,
-.business-filters input {
-  width: 220px;
-  box-sizing: border-box;
 }
 
 .project-field {
