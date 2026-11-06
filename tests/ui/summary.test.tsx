@@ -110,7 +110,10 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
 describeReal('table summary on the real SP_CLO lineage', () => {
   it('is a three-column table: column, paths, ultimate sources', async () => {
     const { table } = await openTable('CM_PAR_LOAN_TRADES')
-    expect(within(table).getAllByRole('columnheader').map(textOf)).toEqual(['Column', 'Paths', 'Ultimate sources'])
+    const headers = within(table).getAllByRole('columnheader').map(textOf)
+    expect(headers[0]).toBe('Column')
+    expect(headers[1]).toContain('Paths')
+    expect(headers[2]).toContain('Ultimate sources')
     expect(within(table).getAllByRole('row')).toHaveLength(1 + 26)
   })
 
@@ -206,6 +209,28 @@ describeReal('table summary on the real SP_CLO lineage', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse all' }))
     expect(within(table).queryAllByRole('list', { name: /^Paths of/ })).toHaveLength(0)
     expect(within(table).queryAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(0)
+  })
+
+  it('expands and collapses the paths and sources columns independently', async () => {
+    const { user, table } = await openTable('CM_PAR_LOAN_TRADES')
+    // Initial state: paths collapsed, sources open.
+    expect(within(table).queryAllByRole('list', { name: /^Paths of/ })).toHaveLength(0)
+    expect(within(table).getAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(26)
+
+    // Paths toggle affects only the paths column.
+    await user.click(screen.getByRole('button', { name: 'Expand paths column' }))
+    expect(within(table).getAllByRole('list', { name: /^Paths of/ })).toHaveLength(26)
+    expect(within(table).getAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(26)
+    await user.click(screen.getByRole('button', { name: 'Collapse paths column' }))
+    expect(within(table).queryAllByRole('list', { name: /^Paths of/ })).toHaveLength(0)
+    expect(within(table).getAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(26)
+
+    // Sources toggle affects only the sources column.
+    await user.click(screen.getByRole('button', { name: 'Collapse sources column' }))
+    expect(within(table).queryAllByRole('list', { name: /^Paths of/ })).toHaveLength(0)
+    expect(within(table).queryAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(0)
+    await user.click(screen.getByRole('button', { name: 'Expand sources column' }))
+    expect(within(table).getAllByRole('list', { name: /^Ultimate sources of/ })).toHaveLength(26)
   })
 
   it('filters columns by name and says how many are shown', async () => {
