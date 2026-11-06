@@ -63,7 +63,7 @@ const listNames = () => within(screen.getByRole('list', { name: 'Target tables' 
 
 describe('business view of the summary landing page', () => {
   it('is the default and lists only cataloged tables with their business subtitle', async () => {
-    show(client, '#/summary')
+    const user = show(client, '#/summary')
     await screen.findByText(/PAR_GFRS_LIQ_TRADES/)
     const names = listNames()
     expect(names.some((t) => t.includes('PAR_GFRS_CLO_TRADES'))).toBe(true)
@@ -72,6 +72,7 @@ describe('business view of the summary landing page', () => {
     expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('Lending · Loan IQ · SP_LIQ')
     expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('226 columns')
     expect(screen.getByRole('button', { name: 'Business' }).getAttribute('aria-pressed')).toBe('true')
+    await user.click(screen.getByRole('button', { name: /notes? about the listed projects/ }))
     expect(screen.getByText(/SP_TFS_TIP: Listed in the catalog/)).toBeTruthy()
   })
 

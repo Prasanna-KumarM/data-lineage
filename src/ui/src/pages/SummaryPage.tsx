@@ -31,6 +31,7 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
   const closeGraph = useCallback(() => setGraphColumn(null), [])
   const [detailStep, setDetailStep] = useState<string | null>(null)
   const [developer, setDeveloper] = useState(false)
+  const [notesOpen, setNotesOpen] = useState(false)
 
   const entries = projects.status === 'success' ? projects.data.filter((p) => p.startable !== false) : []
   const names = entries.map((p) => p.project_name)
@@ -48,6 +49,12 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
     onCatalogAvailable(hasCatalog)
     if (hasCatalog && audience === null) onAudienceChange('business')
   }, [hasCatalog, audience, onCatalogAvailable, onAudienceChange])
+
+  // Project problems and catalog drift, tucked behind one collapsible info bar.
+  const notes = [
+    ...allProjects.filter((p) => p.ready === false).map((p) => `${p.project_name}: ${p.problem}`),
+    ...allProjects.flatMap((p) => p.catalog_notes ?? []),
+  ]
 
   useEffect(() => {
     setGraphColumn(null)
@@ -91,19 +98,28 @@ export function SummaryPage({ client, route, audience, onAudienceChange, onCatal
           </select>
         </div>
       )}
-      {allProjects
-        .filter((p) => p.ready === false)
-        .map((p) => (
-          <p key={p.project_name} className="status note">
-            {p.project_name}: {p.problem}
-          </p>
-        ))}
-      {allProjects.flatMap((p) =>
-        (p.catalog_notes ?? []).map((note) => (
-          <p key={`${p.project_name}:${note}`} className="status note">
-            {note}
-          </p>
-        )),
+      {notes.length > 0 && (
+        <div className="info-bar">
+          <button
+            type="button"
+            className="info-toggle"
+            aria-expanded={notesOpen}
+            aria-label={`${notes.length} ${notes.length === 1 ? 'note' : 'notes'} about the listed projects`}
+            title="Notes about the listed projects"
+            onClick={() => setNotesOpen((open) => !open)}
+          >
+            <span aria-hidden="true">ⓘ</span>
+          </button>
+          {notesOpen && (
+            <ul className="info-notes">
+              {notes.map((note) => (
+                <li key={note} className="status note">
+                  {note}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
       {view === 'developer' && projects.status === 'success' && names.length > 1 && !project && (
         <p className="status">Choose a project to see its target tables.</p>

@@ -757,6 +757,30 @@ button.dot:focus-visible {
   font-weight: 700;
 }
 
+.info-bar {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.info-toggle {
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid #cbd2d9;
+  border-radius: 50%;
+  background: #fff;
+  color: #1d4ed8;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.info-notes {
+  margin: 2px 0 0;
+  padding-left: 18px;
+}
+
 .table-result-sub {
   font-size: 0.78rem;
   color: #7b8794;
