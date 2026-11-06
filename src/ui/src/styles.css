@@ -667,6 +667,42 @@ button.dot:focus-visible {
   padding: 24px;
 }
 
+/* Summary table view: the chrome (project picker, crumbs, toolbar, table header)
+   stays fixed; only the column table scrolls. */
+.app-table {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-table .page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.app-table .summary {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-table .table-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.app-table .summary-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
 .search {
   display: flex;
   flex-direction: column;

@@ -21,7 +21,11 @@ export default function App({ client: injected }: Props) {
   }, [])
 
   return (
-    <div className={route.name === 'lineage' ? 'app app-lineage' : 'app'}>
+    <div
+      className={
+        route.name === 'lineage' ? 'app app-lineage' : route.name === 'summary' && route.objectId ? 'app app-table' : 'app'
+      }
+    >
       <header className="topbar">
         <h1>Data Lineage</h1>
         <nav aria-label="Pages">

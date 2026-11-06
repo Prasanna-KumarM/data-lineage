@@ -208,8 +208,9 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail 
         </p>
       </div>
 
-      <table className="summary-table">
-        <caption className="visually-hidden">Columns of {summary.object.object_name}</caption>
+      <div className="table-scroll">
+        <table className="summary-table">
+          <caption className="visually-hidden">Columns of {summary.object.object_name}</caption>
         <thead>
           <tr>
             <th scope="col">Column</th>
@@ -324,7 +325,8 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail 
             </tr>
           )}
         </tbody>
-      </table>
+        </table>
+      </div>
     </section>
   )
 }
