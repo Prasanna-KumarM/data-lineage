@@ -77,7 +77,7 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
   const allObjects = rows.map((r) => r.object)
 
   return (
-    <section className="search" aria-label="Find a target table">
+    <section className="search business-search" aria-label="Find a target table">
       <div className="selectors">
         <div className="field">
           <label htmlFor="value-chain">Value chain</label>

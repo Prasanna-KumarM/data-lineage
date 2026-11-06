@@ -711,6 +711,11 @@ button.dot:focus-visible {
   max-width: 720px;
 }
 
+/* The business filter row holds three 240px fields side by side; no cap. */
+.search.business-search {
+  max-width: none;
+}
+
 .search label,
 .toolbar-label {
   font-size: 0.8rem;
