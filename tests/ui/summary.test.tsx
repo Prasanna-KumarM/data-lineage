@@ -77,7 +77,7 @@ describeReal('summary landing page on the real SP_CLO lineage', () => {
     await screen.findByRole('table')
     const objectId = await ids('AR_PAR_LOAN_EVENTS')
     expect(window.location.hash).toBe(`#/summary/SP_CLO/${objectId}`)
-    expect(screen.getByRole('heading', { name: 'AR_PAR_LOAN_EVENTS' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /AR_PAR_LOAN_EVENTS/ })).toBeTruthy()
     expect(document.body.textContent).toContain('46 columns · 46 with lineage')
     expect(document.body.textContent).not.toContain('AR_CLO_EVENT_PROCESSING')
 
@@ -308,7 +308,7 @@ describeReal('moving between the summary and the walkthrough', () => {
     expect(link.getAttribute('href')).toBe(`#/summary/SP_CLO/${objectId}`)
     await user.click(link)
     expect(await screen.findByRole('table')).toBeTruthy()
-    expect(screen.getByRole('heading', { name: 'CM_PAR_LOAN_TRADES' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: /CM_PAR_LOAN_TRADES/ })).toBeTruthy()
   })
 
   it('supports the browser Back button', async () => {

@@ -14,6 +14,15 @@ class ProjectOut(BaseModel):
     startable: Optional[bool] = None
     # Application name shown instead of the project code, when configured.
     application: Optional[str] = None
+    # Business catalog mapping (src/aptitude_lineage/config/catalog.csv), when listed there.
+    value_chain: Optional[str] = None
+    source_system: Optional[str] = None
+    target_system: Optional[str] = None
+    business_tables: Optional[list[str]] = None
+    # Row position in the catalog CSV; the UI preselects the first row's filters.
+    catalog_order: Optional[int] = None
+    # Warnings when the catalog and the databases disagree.
+    catalog_notes: Optional[list[str]] = None
 
 
 class BusinessProcessOut(BaseModel):

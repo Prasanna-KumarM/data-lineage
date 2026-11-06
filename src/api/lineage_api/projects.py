@@ -38,6 +38,9 @@ class ProjectRegistry:
         try:
             check_schema(conn)
             names = list_projects(conn)
+            known_tables = sorted(
+                {r[0] for r in conn.execute("SELECT DISTINCT root_target_object_name FROM business_lineage_step")}
+            )
         except SchemaMismatch:
             return [{"project_name": folder, "folder": folder, "path": path, "ready": False,
                      "problem": "The database needs to be migrated (run ./start.sh --migrate)."}]
@@ -51,7 +54,7 @@ class ProjectRegistry:
                      "problem": "The database has no lineage."}]
         application = (path.parent / "application").read_text().strip() if (path.parent / "application").is_file() else None
         return [{"project_name": n, "folder": folder, "path": path, "ready": True, "problem": None,
-                 "application": application or None,
+                 "application": application or None, "known_tables": known_tables,
                  "startable": not (path.parent / "continuation_only").exists()} for n in names]
 
     def entries(self) -> list[dict[str, Any]]:

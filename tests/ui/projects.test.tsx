@@ -34,7 +34,7 @@ const projects = [
 
 describe('choosing a project on the summary page', () => {
   it('lists every project database, and explains the ones that cannot be used yet', async () => {
-    show(scripted(projects), '#/summary')
+    const user = show(scripted(projects), '#/summary')
     const select = (await screen.findByLabelText('Project')) as HTMLSelectElement
     const options = Array.from(select.options).map((o) => ({ text: o.textContent, disabled: o.disabled }))
     expect(options).toEqual([
@@ -43,6 +43,7 @@ describe('choosing a project on the summary page', () => {
       { text: 'SP_CLO', disabled: false },
       { text: 'SP_LIQ', disabled: false },
     ])
+    await user.click(screen.getByRole('button', { name: /notes? about the listed projects/ }))
     expect(document.body.textContent).toContain('GP_BROKEN: The database needs to be migrated')
     expect(screen.getByText('Choose a project to see its target tables.')).toBeTruthy()
     expect(screen.queryByLabelText('Search target tables')).toBeNull()
@@ -56,7 +57,8 @@ describe('choosing a project on the summary page', () => {
   })
 
   it('does not pick a single project by itself when it cannot be used', async () => {
-    show(scripted([projects[0]]), '#/summary')
+    const user = show(scripted([projects[0]]), '#/summary')
+    await user.click(await screen.findByRole('button', { name: /notes? about the listed projects/ }))
     expect((await screen.findByText(/^GP_BROKEN: The database needs to be migrated/)).textContent).toContain('--migrate')
     expect(screen.queryByLabelText('Search target tables')).toBeNull()
   })

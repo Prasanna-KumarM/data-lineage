@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bindProject, type ApiClient } from '../api/client'
 import type { TargetObject } from '../api/types'
 import { useAsync } from '../hooks/useAsync'
@@ -7,6 +7,7 @@ import { DetailDrawer } from '../components/DetailDrawer'
 import { ErrorNotice, LoadingNotice } from '../components/Notices'
 import { GraphDialog } from '../components/GraphDialog'
 import { objectLabel } from '../components/objectLabel'
+import { BusinessSearch, catalogSubtitle } from '../components/BusinessSearch'
 import { SummaryTable } from '../components/SummaryTable'
 import { TableSearch } from '../components/TableSearch'
 
@@ -15,10 +16,16 @@ type SummaryRoute = Extract<Route, { name: 'summary' }>
 interface Props {
   client: ApiClient
   route: SummaryRoute
+  /** Audience toggle state, owned by App so the control can sit in the topbar. */
+  audience: 'business' | 'developer' | null
+  onAudienceChange: (audience: 'business' | 'developer') => void
+  onCatalogAvailable: (available: boolean) => void
+  /** Project/catalog notes, shown through the info icon in the topbar. */
+  onNotesChange: (notes: string[]) => void
 }
 
 /** Landing page: find a target table, then see every column with its paths and ultimate sources. */
-export function SummaryPage({ client, route }: Props) {
+export function SummaryPage({ client, route, audience, onAudienceChange, onCatalogAvailable, onNotesChange }: Props) {
   const navigate = useNavigate()
   const projects = useAsync((signal) => client.projects(signal), 'projects')
   const [chosenProject, setChosenProject] = useState<string | null>(null)
@@ -31,6 +38,34 @@ export function SummaryPage({ client, route }: Props) {
   const names = entries.map((p) => p.project_name)
   const onlyUsable = entries.length === 1 && entries[0].ready !== false ? names[0] : null
   const project = route.project ?? chosenProject ?? onlyUsable
+  const projectMeta = projects.status === 'success' ? projects.data.find((p) => p.project_name === project) : undefined
+
+  // Business view (cataloged tables only) is the default when a catalog exists;
+  // the developer view lists every table of every project, as before.
+  // The audience toggle lives in the topbar; its state is owned by App.
+  // useMemo keeps a stable empty array so the notes effect below does not loop while loading.
+  const projectsData = projects.status === 'success' ? projects.data : null
+  const allProjects = useMemo(() => projectsData ?? [], [projectsData])
+  const hasCatalog = allProjects.some((p) => p.business_tables !== undefined)
+  const view: 'business' | 'developer' = hasCatalog ? (audience ?? 'business') : 'developer'
+
+  useEffect(() => {
+    onCatalogAvailable(hasCatalog)
+    if (hasCatalog && audience === null) onAudienceChange('business')
+  }, [hasCatalog, audience, onCatalogAvailable, onAudienceChange])
+
+  // Project problems and catalog drift, shown through the info icon in the topbar.
+  const notes = useMemo(
+    () => [
+      ...allProjects.filter((p) => p.ready === false).map((p) => `${p.project_name}: ${p.problem}`),
+      ...allProjects.flatMap((p) => p.catalog_notes ?? []),
+    ],
+    [allProjects],
+  )
+  useEffect(() => {
+    onNotesChange(notes)
+    return () => onNotesChange([])
+  }, [notes, onNotesChange])
 
   useEffect(() => {
     setGraphColumn(null)
@@ -54,7 +89,7 @@ export function SummaryPage({ client, route }: Props) {
       {projects.status === 'error' && <ErrorNotice error={projects.error} onRetry={projects.reload} />}
 
       {projects.status === 'success' && names.length === 0 && <p className="status">No projects available.</p>}
-      {projects.status === 'success' && names.length > 0 && (
+      {projects.status === 'success' && names.length > 0 && view === 'developer' && !route.objectId && (
         <div className="field project-field">
           <label htmlFor="summary-project">Project</label>
           <select
@@ -74,18 +109,27 @@ export function SummaryPage({ client, route }: Props) {
           </select>
         </div>
       )}
-      {entries
-        .filter((p) => p.ready === false)
-        .map((p) => (
-          <p key={p.project_name} className="status note">
-            {p.project_name}: {p.problem}
-          </p>
-        ))}
-      {projects.status === 'success' && names.length > 1 && !project && (
+      {view === 'developer' && projects.status === 'success' && names.length > 1 && !project && (
         <p className="status">Choose a project to see its target tables.</p>
       )}
 
-      {project && !route.objectId && <TableSearch client={client} project={project} onChoose={open} />}
+      {view === 'developer' && project && !route.objectId && (
+        <TableSearch
+          client={client}
+          project={project}
+          meta={projectMeta}
+          onChoose={open}
+        />
+      )}
+      {view === 'business' && !route.objectId && projects.status === 'success' && (
+        <BusinessSearch
+          client={client}
+          entries={allProjects.filter((p) => p.business_tables !== undefined)}
+          onChoose={(object, projectName) =>
+            navigate({ name: 'summary', project: projectName, objectId: object.object_id })
+          }
+        />
+      )}
 
       {project && route.objectId && (
         <>
@@ -102,7 +146,11 @@ export function SummaryPage({ client, route }: Props) {
           {summary.status === 'success' && (
             <>
               <header className="table-head">
-                <h2>{objectLabel(summary.data.object, [summary.data.object])}</h2>
+                <h2>
+                  {project && <span className="table-project">{project} / </span>}
+                  {objectLabel(summary.data.object, [summary.data.object])}
+                </h2>
+                {projectMeta?.value_chain && <p className="table-subtitle">{catalogSubtitle(projectMeta)}</p>}
                 <p className="table-totals">
                   {summary.data.totals.columns} columns · {summary.data.totals.with_lineage} with lineage
                 </p>
