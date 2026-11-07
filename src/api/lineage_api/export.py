@@ -26,8 +26,6 @@ RELATION_LABEL = {
     "NOT_PERSISTED": "Not persisted",
 }
 
-KIND_LABEL = {"column": "Column", "constant": "Constant", "function": "Function", "not_persisted": "Not persisted"}
-
 _KIND_MEANING = {
     "Column": "The lineage ends at a column of a source table or file.",
     "Constant": "The column is filled by a constant value; nothing is read from a source.",
@@ -38,11 +36,6 @@ _KIND_MEANING = {
 
 def _label(relation_type: str) -> str:
     return RELATION_LABEL.get(relation_type, relation_type.replace("_", " ").capitalize())
-
-
-def _hops(source: dict[str, Any]) -> str:
-    lo, hi = source["hops_min"], source["hops_max"]
-    return f"{lo} hop" if lo == hi == 1 else (str(lo) if lo == hi else f"{lo}–{hi} hops")
 
 
 def _extraction_timestamp(conn: sqlite3.Connection) -> str:
@@ -74,33 +67,35 @@ def _style_sheet(sheet, widths: list[int], wrap_from_row: int = 2) -> None:
 
 
 def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
-    """One row per target column and ultimate source: where the value finally comes from."""
+    """One row per target column and ultimate source, mirroring the UI summary page:
+    the ultimate source, its expressions, and the full lineage path on one row."""
     sheet = wb.active
     sheet.title = "Summary"
-    sheet.append(["Target table", "Target column", "Ultimate source object", "Ultimate source column", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"])
+    sheet.append(["Target object", "Target column", "Source object", "Source column", "Expression", "Result", "Path"])
     for column in columns:
         sources = column["sources"] or [None]
         for source in sources:
             if source is None:
-                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", "", "", "", ""])
+                sheet.append([object_name, column["column_name"], "No lineage", "", "", "", ""])
             else:
+                path = " ← ".join(
+                    [f"{object_name}.{column['column_name']}", *(step["endpoint"] for step in source["route"])]
+                )
                 sheet.append([
                     object_name,
                     column["column_name"],
                     source["object_name"],
                     source["column_name"],
-                    KIND_LABEL.get(source["kind"], source["kind"]),
-                    source["business_process_name"] or "",
-                    _hops(source),
-                    source["route_count"],
                     source["condition"] or "",
                     source["result_expression"] or "",
+                    path,
                 ])
             r = sheet.max_row
+            sheet.cell(row=r, column=1).fill = _TARGET_FILL
             sheet.cell(row=r, column=2).fill = _TARGET_FILL
             sheet.cell(row=r, column=3).fill = _SOURCE_FILL
             sheet.cell(row=r, column=4).fill = _SOURCE_FILL
-    _style_sheet(sheet, [26, 24, 30, 26, 14, 30, 12, 12, 40, 40])
+    _style_sheet(sheet, [26, 24, 30, 26, 40, 40, 90])
 
 
 def _mappings_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
@@ -179,7 +174,7 @@ def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
         ("Database", _db_name(conn)),
         ("Extracted at", _extraction_timestamp(conn)),
         ("", ""),
-        ("Summary sheet", "One row per target column and ultimate source. 'Hops' counts the mappings between them; 'Path variants' counts distinct paths when there is more than one."),
+        ("Summary sheet", "One row per target column and ultimate source, exactly as the summary page lists them: the source, its expressions, and the full lineage path from the target column to that source."),
         ("Mappings sheet", "Distinct target column / ultimate source pairs; one row each, nothing else."),
         ("Steps sheet", "One row per hop of the shortest path from the target column to each ultimate source. 'From' is the column being read; 'To' is what it feeds. When Path variants > 1, only one path is listed."),
         ("", ""),
