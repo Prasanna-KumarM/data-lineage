@@ -1,3 +1,13 @@
+/** 'What the tool analyzed' numbers behind a set of tables. */
+export interface AnalysisStats {
+  business_processes: number
+  components: number
+  mappings: number
+  lineage_paths: number
+  target_columns: number
+  target_columns_with_lineage: number
+}
+
 export interface Project {
   project_name: string
   folder?: string

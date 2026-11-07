@@ -848,6 +848,38 @@ button.dot:focus-visible {
   color: #fff;
 }
 
+.analysis-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 28px;
+  padding: 10px 16px;
+  background: #f9fafb;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+}
+
+.analysis-stats-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #52606d;
+}
+
+.analysis-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.analysis-stat strong {
+  font-size: 1.1rem;
+}
+
+.analysis-stat span {
+  font-size: 0.75rem;
+  color: #7b8794;
+}
+
 .project-field {
   max-width: 320px;
   margin-bottom: 16px;

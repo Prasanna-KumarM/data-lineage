@@ -9,7 +9,15 @@ interface Props {
 }
 
 export default function App({ client: injected }: Props) {
-  const client = useMemo(() => injected ?? createApiClient({ sessionId: newSessionId() }), [injected])
+  const client = useMemo(
+    () => 
+      injected ?? 
+      createApiClient({ 
+        sessionId: newSessionId(),
+        baseUrl: 'data-lineage/api'
+      }),
+  [injected],
+  )
   const route = useRoute()
 
   // Counts real navigations only; the walkthrough rewriting its own address must not restart it.

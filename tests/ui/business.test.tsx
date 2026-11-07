@@ -43,6 +43,14 @@ const TABLES: Record<string, TargetObject[]> = {
 
 const client: ApiClient = {
   projects: async () => catalogProjects,
+  analysisStats: async () => ({
+    business_processes: 2,
+    components: 10,
+    mappings: 20,
+    lineage_paths: 5,
+    target_columns: 2,
+    target_columns_with_lineage: 2,
+  }),
   targets: async (project) => TABLES[project] ?? [],
   columns: async () => [],
   searchTargets: async () => [],
@@ -72,9 +80,21 @@ describe('business view of the summary landing page', () => {
     expect(names.some((t) => t.includes('CM_CLO_INTERNAL'))).toBe(false)
     expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('Lending · Loan IQ · GFRS · SP_LIQ')
     expect(names.find((t) => t.includes('PAR_GFRS_LIQ_TRADES'))).toContain('226 columns')
-    expect(screen.getByRole('button', { name: 'Business' }).getAttribute('aria-pressed')).toBe('true')
+    expect((await screen.findByRole('button', { name: 'Business' })).getAttribute('aria-pressed')).toBe('true')
     await user.click(screen.getByRole('button', { name: /notes? about the listed projects/ }))
     expect(screen.getByText(/SP_TFS_TIP: Listed in the catalog/)).toBeTruthy()
+  })
+
+  it('shows what the tool analyzed above the table list', async () => {
+    show(client, '#/summary')
+    await screen.findByText(/PAR_GFRS_LIQ_TRADES/)
+    const bar = await screen.findByRole('note', { name: 'What the tool analyzed' })
+    expect(bar.textContent).toContain('Business processes analyzed')
+    expect(bar.textContent).toContain('Components identified')
+    expect(bar.textContent).toContain('Mappings uncovered')
+    expect(bar.textContent).toContain('Lineage paths created')
+    expect(bar.textContent).toContain('Target columns covered')
+    expect(bar.textContent).toContain('2/2')
   })
 
   it('filters tables by value chain', async () => {
@@ -107,9 +127,9 @@ describe('business view of the summary landing page', () => {
   it('switches to the developer view and back', async () => {
     const user = show(client, '#/summary')
     await screen.findByText(/PAR_GFRS_LIQ_TRADES/)
-    await user.click(screen.getByRole('button', { name: 'Developer' }))
+    await user.click(await screen.findByRole('button', { name: 'Developer' }))
     expect(await screen.findByLabelText('Project')).toBeTruthy()
-    await user.click(screen.getByRole('button', { name: 'Business' }))
+    await user.click(await screen.findByRole('button', { name: 'Business' }))
     expect(await screen.findByText(/PAR_GFRS_LIQ_TRADES/)).toBeTruthy()
   })
 

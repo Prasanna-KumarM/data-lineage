@@ -25,6 +25,15 @@ class ProjectOut(BaseModel):
     catalog_notes: Optional[list[str]] = None
 
 
+class AnalysisStatsOut(BaseModel):
+    business_processes: int
+    components: int
+    mappings: int
+    lineage_paths: int
+    target_columns: int
+    target_columns_with_lineage: int
+
+
 class BusinessProcessOut(BaseModel):
     business_process_id: Optional[str] = None
     business_process_name: Optional[str] = None

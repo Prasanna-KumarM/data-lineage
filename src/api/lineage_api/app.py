@@ -23,6 +23,7 @@ from lineage_api.db import (
 from lineage_api.depth import get_remaining_depth
 from lineage_api.detail import RelationNotFound, get_relation_detail, get_step_detail
 from lineage_api.lineage_graph import build_column_graph, build_target_graph
+from lineage_api.analysis_stats import AnalysisStatsCache
 from lineage_api.business_catalog import BusinessCatalog
 from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
@@ -134,6 +135,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None,
     app.state.summary_cache = TableSummaryCache()
     app.state.catalog_cache = TargetCatalogCache()
     app.state.business_catalog = BusinessCatalog(catalog_path)
+    app.state.analysis_stats = AnalysisStatsCache()
 
     @app.exception_handler(ApiError)
     def _api_error(_: Request, exc: ApiError) -> JSONResponse:
@@ -214,6 +216,14 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None,
             return [{"project_name": p} for p in list_projects(conn)]
         finally:
             conn.close()
+
+    @app.get("/catalog/analysis-stats", response_model=schemas.AnalysisStatsOut)
+    def catalog_analysis_stats(request: Request, pair: list[str] = Query([])):
+        """'What the tool analyzed' numbers behind the given `project:table` pairs."""
+        registry = _registry(request)
+        if registry is None:
+            return {field: 0 for field in schemas.AnalysisStatsOut.model_fields}
+        return request.app.state.analysis_stats.get(registry, pair)
 
     @app.get("/targets", response_model=list[schemas.TargetObjectOut])
     def targets(request: Request, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
