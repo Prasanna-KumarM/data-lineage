@@ -1,6 +1,6 @@
 """Business catalog: maps project codes to the vocabulary business users know.
 
-The CSV lives at src/aptitude_lineage/config/catalog.csv (override with the
+The CSV lives at src/ui/config/catalog.csv (override with the
 LINEAGE_CATALOG environment variable). Columns:
 project, value_chain, source_system, target_system, tables
 where tables is a '|'-separated whitelist of the tables shown in the business view.
@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ENV_CATALOG = "LINEAGE_CATALOG"
-DEFAULT_CATALOG = (
-    Path(__file__).resolve().parents[3] / "src" / "aptitude_lineage" / "config" / "catalog.csv"
-)
+DEFAULT_CATALOG = Path(__file__).resolve().parents[3] / "src" / "ui" / "config" / "catalog.csv"
 
 
 class BusinessCatalog:
