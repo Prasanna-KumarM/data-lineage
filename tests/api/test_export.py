@@ -52,7 +52,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
 
     sheet = wb["Summary"]
     headers = [c.value for c in sheet[1]]
-    assert headers == ["Target table", "Target column", "Ultimate source object", "Ultimate source column", "Source type", "Business process", "Hops", "Path variants", "EXPR (driving)", "OUTPUT (result)"]
+    assert headers == ["Target object", "Target column", "Source object", "Source column", "Expression", "Result", "Path"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
     assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
@@ -65,12 +65,13 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
         ("CM_CLO_OFFER", "OFR_HTC_BOOK_CODE"),
         ("CM_CLO_OFFER", "OFR_HTS_BOOK_CODE"),
     }
-    assert all(r[4] == "Column" for r in fdk)
+    # The path starts at the target column and ends at the row's ultimate source.
+    assert all(r[6].startswith("CM_PAR_LOAN_TRADES.FDK_MT ← ") for r in fdk)
+    assert all(r[6].endswith(f"{r[2]}.{r[3]}") for r in fdk)
 
     steps = [[c.value for c in row] for row in wb["Steps"].iter_rows(min_row=2)]
     assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"]
-    # Business process is populated on every Summary and Steps row.
-    assert all(r[5] for r in rows)
+    # Business process is populated on every Steps row.
     assert all(r[8] for r in steps)
     assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
     fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
