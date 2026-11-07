@@ -1,4 +1,5 @@
 import type {
+  AnalysisStats,
   ColumnGraph,
   Continuation,
   Project,
@@ -26,6 +27,8 @@ export class ApiError extends Error {
 
 export interface ApiClient {
   projects(signal?: AbortSignal): Promise<Project[]>
+  /** 'What the tool analyzed' numbers behind the given project/table pairs. */
+  analysisStats?(pairs: { project: string; table: string }[], signal?: AbortSignal): Promise<AnalysisStats>
   targets(project: string, signal?: AbortSignal): Promise<TargetObject[]>
   columns(project: string, objectId: string, signal?: AbortSignal): Promise<TargetColumn[]>
   searchTargets(project: string, query: string, signal?: AbortSignal): Promise<TargetObject[]>
@@ -54,8 +57,12 @@ export interface ApiClientOptions {
 export const bindProject = (client: ApiClient, project: string): ApiClient => client.forProject?.(project) ?? client
 
 export function createApiClient({ sessionId, baseUrl = '', fetchImpl, project }: ApiClientOptions): ApiClient {
-  async function get<T>(path: string, params: Record<string, string>, signal?: AbortSignal): Promise<T> {
-    const query = new URLSearchParams(params).toString()
+  async function get<T>(path: string, params: Record<string, string | string[]>, signal?: AbortSignal): Promise<T> {
+    const search = new URLSearchParams()
+    for (const [key, value] of Object.entries(params)) {
+      for (const item of Array.isArray(value) ? value : [value]) search.append(key, item)
+    }
+    const query = search.toString()
     const url = `${baseUrl}${path}${query ? `?${query}` : ''}`
     let response: Response
     try {
@@ -88,6 +95,8 @@ export function createApiClient({ sessionId, baseUrl = '', fetchImpl, project }:
 
   return {
     projects: (signal) => get('/projects', {}, signal),
+    analysisStats: (pairs, signal) =>
+      get('/catalog/analysis-stats', { pair: pairs.map((p) => `${p.project}:${p.table}`) }, signal),
     targets: (project, signal) => get('/targets', { project }, signal),
     columns: (project, objectId, signal) =>
       get(`/targets/${encodeURIComponent(objectId)}/columns`, { project }, signal),

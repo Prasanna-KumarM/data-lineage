@@ -76,6 +76,19 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
   )
   const allObjects = rows.map((r) => r.object)
 
+  // 'What the tool analyzed' numbers behind the tables currently listed.
+  const statsKey = rows.map((r) => `${r.project.project_name}:${r.object.object_name}`).sort().join(',')
+  const stats = useAsync(
+    client.analysisStats && rows.length
+      ? (signal) =>
+            client.analysisStats!(
+              rows.map((r) => ({ project: r.project.project_name, table: r.object.object_name })),
+              signal,
+            )
+      : null,
+    `stats:${statsKey}`,
+  )
+
   return (
     <section className="search business-search" aria-label="Find a target table">
       <div className="selectors">
@@ -115,6 +128,33 @@ export function BusinessSearch({ client, entries, onChoose }: Props) {
       </div>
       {tables.status === 'loading' && <LoadingNotice text="Loading tables…" />}
       {tables.status === 'error' && <ErrorNotice error={tables.error} onRetry={tables.reload} />}
+      {stats.status === 'success' && (
+        <div className="analysis-stats" role="note" aria-label="What the tool analyzed">
+          <span className="analysis-stats-title">What the tool analyzed</span>
+          <span className="analysis-stat">
+            <strong>{stats.data.business_processes}</strong>
+            <span>Business processes analyzed</span>
+          </span>
+          <span className="analysis-stat">
+            <strong>{stats.data.components}</strong>
+            <span>Components identified</span>
+          </span>
+          <span className="analysis-stat">
+            <strong>{stats.data.mappings}</strong>
+            <span>Mappings uncovered</span>
+          </span>
+          <span className="analysis-stat">
+            <strong>{stats.data.lineage_paths}</strong>
+            <span>Lineage paths created</span>
+          </span>
+          <span className="analysis-stat">
+            <strong>
+              {stats.data.target_columns_with_lineage}/{stats.data.target_columns}
+            </strong>
+            <span>Target columns covered</span>
+          </span>
+        </div>
+      )}
       {(tables.status === 'success' || tables.status === 'idle') && (
         <>
           <p className="status" aria-live="polite">

@@ -2,7 +2,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 const apiTarget = process.env.LINEAGE_API_URL ?? 'http://127.0.0.1:8000'
-const apiPrefixes = ['/projects', '/targets', '/lineage', '/steps', '/relations']
+const apiPrefixes = ['/projects', '/targets', '/lineage', '/steps', '/relations', '/catalog']
 
 export default defineConfig({
   plugins: [react()],
