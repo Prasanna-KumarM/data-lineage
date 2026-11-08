@@ -14,7 +14,7 @@ class ProjectOut(BaseModel):
     startable: Optional[bool] = None
     # Application name shown instead of the project code, when configured.
     application: Optional[str] = None
-    # Business catalog mapping (src/ui/config/catalog.csv), when listed there.
+    # Business catalog mapping (src/api/config/catalog.csv), when listed there.
     value_chain: Optional[str] = None
     source_system: Optional[str] = None
     target_system: Optional[str] = None

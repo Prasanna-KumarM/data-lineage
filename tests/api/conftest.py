@@ -7,7 +7,7 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _isolate_business_catalog(monkeypatch):
-    """Keep tests independent of the real src/ui/config/catalog.csv."""
+    """Keep tests independent of the real src/api/config/catalog.csv."""
     monkeypatch.setenv("LINEAGE_CATALOG", "/nonexistent/catalog.csv")
 
 
