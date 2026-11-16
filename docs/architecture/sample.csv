@@ -16,3 +16,18 @@ SELECT s.root_target_object_id AS object_id,
 OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,PAR_ACCOUNTING_ENTRIES,GP_CLO,BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd,AR_LOAN_ACCOUNTING,39
 OBJ_ecda29433af601e67dd84159dc5b4a45987ad4610da6512d01f730ab85aa1622,PAR_TRADE_BALANCES,GP_CLO,BPR_5aef5c768e17d748dfa5f217e58fb675ec285e593effd96f80966c615c1b2b0e,CM_LOAN_RECONCILIATION,32
 OBJ_45f26106b63830b7250c2f034e756413338efa4b249fa6a0566171f74bc407ba,PAR_UNPROCESSED_EVENTS,GP_CLO,BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd,AR_LOAN_ACCOUNTING,38
+
+SELECT bp.project_name, bp.business_process_id, bp.business_process_name,
+       t.component_id, t.component_type, t.referenced_element_type,
+       t.referenced_project_name, t.referenced_element_name
+FROM component t
+JOIN business_process bp ON bp.business_process_id = t.business_process_id
+WHERE bp.project_name = 'GP_CLO'
+  AND t.component_type = 'AptitudeServiceTarget'
+  AND t.referenced_element_type = 'Target'
+  AND t.referenced_element_name IN (
+      'PAR_ACCOUNTING_ENTRIES',
+      'PAR_TRADE_BALANCES',
+      'PAR_UNPROCESSED_EVENTS'
+  )
+ORDER BY t.referenced_element_name, bp.business_process_name;
