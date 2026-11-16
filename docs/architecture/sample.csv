@@ -64,3 +64,26 @@ GP_CLO,BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd,AR_L
 GP_SHARED,BPR_ef50980461914d8d64a934747b8a956a3a40586b5ec59a3ef2ab1bc87c50b0b5,PAR_TRADE_BALANCES Rates and Accounts,CMP_573bd702e07126b55e781315ce94a8142c1f1f2628f128b72cd8e697e966be10,AptitudeServiceTarget,Target,GP_SHARED,PAR_UNPROCESSED_TRADES
 GP_SHARED,BPR_1a5c5f998b14d348f1982b180ac1c8cbce2a2ff63f53b390d55df3a3855ff430,PAR_TRADE_BALANCES Rates and Accounts Multi-GAAP,CMP_95e02ced0219ca2d4db83f89a0df54748bfc5834a9b40d5b558c5bf372ef6cc9,AptitudeServiceTarget,Target,GP_SHARED,PAR_UNPROCESSED_TRADES
 
+
+CREATE TABLE business_process_invocation (
+    invocation_id TEXT PRIMARY KEY,
+    calling_business_process_id TEXT NOT NULL,
+    call_component_id TEXT NOT NULL,
+    referenced_business_process_name TEXT NOT NULL,
+    referenced_project_name TEXT NOT NULL,
+    referenced_business_process_id TEXT,
+    resolution_status TEXT NOT NULL,
+    evidence_id TEXT,
+    FOREIGN KEY (calling_business_process_id)
+        REFERENCES business_process (business_process_id),
+    FOREIGN KEY (call_component_id)
+        REFERENCES component (component_id),
+    FOREIGN KEY (referenced_business_process_id)
+        REFERENCES business_process (business_process_id)
+);
+
+
+"invocation_id","calling_business_process_id","call_component_id","referenced_business_process_name","referenced_project_name","referenced_business_process_id","resolution_status","evidence_id"
+INV_9cd7ae71aee86e217fadd82c5e241b48ae43aa2b217adf129cb3b4276711d49a,BPR_5aef5c768e17d748dfa5f217e58fb675ec285e593effd96f80966c615c1b2b0e,CMP_c09b645db93c00378a16396d09b291c83fa0411bbf7b425eb09f771c78535e9d,PAR_TRADE_BALANCES Rates and Accounts Multi-GAAP,GP_SHARED,BPR_1a5c5f998b14d348f1982b180ac1c8cbce2a2ff63f53b390d55df3a3855ff430,RESOLVED,EVD_ab82e4c9d22f7ca79d015eb1bc4ccf3b7a8c9d8160cfacfa9ca5c8fe5fba6253
+INV_47383a0c2921a99e323c64ed940c8be54d49d31427d194da04dc493d26736a40,BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd,CMP_ba87832c33218078eed8d8e5836e35e6bdb76cc55cc5af95505d8310f05b2e53,PAR_ACCOUNTING_ENTRIES Rates and Accounts Multi-GAAP,GP_SHARED,BPR_74782fd9c3dd3feb6865f4b63c46739cd76dd97074d271eb49b09bd7ff835cd0,RESOLVED,EVD_c734b1f130efcbb3789554e5e0ce8988fffda5b5d4b3db8343884bc5fef0ce65
+
