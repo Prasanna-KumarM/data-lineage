@@ -123,6 +123,86 @@ def test_cm_par_sap_trades_keeps_all_twenty_wip_sap_relations(sp_liq_db):
     assert len(choices) == 20
     conn.close()
 
+def test_target_from_directly_invoked_project_is_included_in_selected_project_db(sp_liq_db, tmp_path):
+    import shutil
+
+    copy = tmp_path / "lineage.db"
+    shutil.copy(sp_liq_db, copy)
+    conn = sqlite3.connect(copy)
+    conn.row_factory = sqlite3.Row
+    target_component = conn.execute(
+        """SELECT t.component_id,t.business_process_id,t.local_block_id,t.referenced_element_name,
+                         t.referenced_project_name,bp.business_process_name
+           FROM component t JOIN business_process bp ON bp.business_process_id=t.business_process_id
+           WHERE bp.project_name='SP_LIQ' AND t.component_type='AptitudeServiceTarget'
+             AND t.referenced_element_type='Target' AND t.referenced_element_name='AR_PAR_FEE_EVENTS'
+             AND t.referenced_project_name='GP_SHARED'"""
+    ).fetchone()
+    assert target_component is not None
+    caller_id = target_component["business_process_id"]
+    shared_id = "BPR_TEST_GP_SHARED_FEE_EVENTS"
+    shared_name = "AR_PAR_FEE_EVENTS Shared"
+    call_component_id = "CMP_TEST_GP_SHARED_FEE_EVENTS_CALL"
+    conn.execute(
+        "INSERT INTO business_process (business_process_id,project_name,business_process_name) VALUES (?,?,?)",
+        (shared_id, "GP_SHARED", shared_name),
+    )
+    conn.execute(
+        "UPDATE component SET business_process_id=? WHERE component_id=?",
+        (shared_id, target_component["component_id"]),
+    )
+    conn.execute(
+        """INSERT INTO component (
+               component_id,business_process_id,local_block_id,component_type,component_name,
+               is_active,is_visible,referenced_element_type,referenced_element_name,referenced_project_name
+           ) VALUES (?,?,?,?,?,?,?,?,?,?)""",
+        (
+            call_component_id,
+            caller_id,
+            "LOCAL_TEST_GP_SHARED_FEE_EVENTS_CALL",
+            "AptitudeServiceBlock",
+            "Call shared fee events",
+            1,
+            1,
+            "BusinessProcess",
+            shared_name,
+            "GP_SHARED",
+        ),
+    )
+    conn.execute(
+        """INSERT INTO business_process_invocation (
+               invocation_id,calling_business_process_id,call_component_id,
+               referenced_business_process_name,referenced_project_name,
+               referenced_business_process_id,resolution_status
+           ) VALUES (?,?,?,?,?,?,?)""",
+        (
+            "INV_TEST_GP_SHARED_FEE_EVENTS",
+            caller_id,
+            call_component_id,
+            shared_name,
+            "GP_SHARED",
+            shared_id,
+            "RESOLVED",
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+    client = TestClient(create_app(str(copy)))
+    response = client.get("/targets", params={"project": "SP_LIQ"})
+    assert response.status_code == 200
+    target = next(
+        item for item in response.json()
+        if item["object_name"] == "AR_PAR_FEE_EVENTS" and item["source_project"] == "GP_SHARED"
+    )
+    assert {p["business_process_name"] for p in target["business_processes"]} == {
+        "AR_LIQ_EVENT_PROCESSING",
+        shared_name,
+    }
+    summary = client.get(f"/targets/{target['object_id']}/summary", params={"project": "SP_LIQ"})
+    assert summary.status_code == 200
+    assert summary.json()["totals"]["with_lineage"] > 0
+
 
 def test_gfrs_target_includes_lineage_from_its_block_callers(sp_liq_db):
     conn = sqlite3.connect(f"file:{sp_liq_db}?mode=ro", uri=True)

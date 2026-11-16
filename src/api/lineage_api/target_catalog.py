@@ -72,8 +72,35 @@ def _has_invocations(conn: sqlite3.Connection) -> bool:
     return conn.execute("SELECT 1 FROM business_process_invocation LIMIT 1").fetchone() is not None
 
 
+def _invoked_projects(conn: sqlite3.Connection, project: str) -> set[str]:
+    """Directly invoked projects whose resolved business processes are in this DB."""
+    if not _has_invocations(conn):
+        return set()
+    return {
+        row[0]
+        for row in conn.execute(
+            """SELECT DISTINCT target.project_name
+               FROM business_process_invocation inv
+               JOIN business_process caller
+                 ON caller.business_process_id=inv.calling_business_process_id
+               JOIN business_process target
+                 ON target.business_process_id=inv.referenced_business_process_id
+               WHERE caller.project_name=?
+                 AND inv.resolution_status='RESOLVED'
+                 AND inv.referenced_project_name=target.project_name
+                 AND target.project_name<>?""",
+            (project, project),
+        )
+        if row[0]
+    }
+
+
 def _calling_processes(
-    conn: sqlite3.Connection, project: str, target_bp_id: str, target_bp_name: str, use_invocations: bool
+    conn: sqlite3.Connection,
+    project: str,
+    target_bp_id: str,
+    target_bp_name: str,
+    use_invocations: bool,
 ) -> list[sqlite3.Row]:
     if use_invocations:
         return conn.execute(
@@ -137,16 +164,18 @@ def target_definitions(
             obj["_root_pairs"].append((r["business_process_id"], r["object_id"]))
         return list(grouped.values())
 
+    target_projects = sorted({project, *_invoked_projects(conn, project)})
+    project_marks = ",".join("?" for _ in target_projects)
     components = conn.execute(
-        """SELECT DISTINCT t.business_process_id,bp.business_process_name,
+        f"""SELECT DISTINCT t.business_process_id,bp.business_process_name,
                           t.referenced_element_name AS object_name,
                           t.referenced_project_name AS source_project
            FROM component t
            JOIN business_process bp ON bp.business_process_id=t.business_process_id
-           WHERE bp.project_name=? AND t.component_type='AptitudeServiceTarget'
+           WHERE bp.project_name IN ({project_marks}) AND t.component_type='AptitudeServiceTarget'
              AND t.referenced_element_type='Target'
            ORDER BY t.referenced_element_name,t.referenced_project_name,bp.business_process_name""",
-        (project,),
+        target_projects,
     ).fetchall()
 
     use_invocations = _has_invocations(conn)
