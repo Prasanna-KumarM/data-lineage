@@ -148,6 +148,12 @@ def test_target_from_directly_invoked_project_is_included_in_selected_project_db
         (shared_id, "GP_SHARED", shared_name),
     )
     conn.execute(
+        """UPDATE business_lineage_step
+           SET business_process_id=?,business_process_name=?
+           WHERE business_process_id=? AND root_target_object_name=?""",
+        (shared_id, shared_name, caller_id, target_component["referenced_element_name"]),
+    )
+    conn.execute(
         "UPDATE component SET business_process_id=? WHERE component_id=?",
         (shared_id, target_component["component_id"]),
     )
@@ -202,6 +208,22 @@ def test_target_from_directly_invoked_project_is_included_in_selected_project_db
     summary = client.get(f"/targets/{target['object_id']}/summary", params={"project": "SP_LIQ"})
     assert summary.status_code == 200
     assert summary.json()["totals"]["with_lineage"] > 0
+    column = next(c for c in summary.json()["columns"] if c["has_lineage"])
+    params = {
+        "project": "SP_LIQ",
+        "object_id": target["object_id"],
+        "column_id": column["column_id"],
+    }
+    graph = client.get("/lineage/graph", params=params)
+    assert graph.status_code == 200
+    assert graph.json()["has_lineage"] is True
+    assert graph.json()["edges"]
+    upstream = client.get("/lineage/upstream", params=params)
+    assert upstream.status_code == 200
+    assert upstream.json()["choices"]
+    sources = client.get("/lineage/ultimate-sources", params=params)
+    assert sources.status_code == 200
+    assert sources.json()["terminal_sources"]
 
 
 def test_gfrs_target_includes_lineage_from_its_block_callers(sp_liq_db):

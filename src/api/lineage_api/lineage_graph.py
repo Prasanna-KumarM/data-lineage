@@ -23,7 +23,7 @@ _STEPS_SQL = """
     FROM business_lineage_step s
     JOIN business_process bp ON bp.business_process_id = s.business_process_id
     LEFT JOIN canonical_object o ON o.object_id = s.source_object_id
-    WHERE bp.project_name = ? AND s.root_target_object_id = ? AND s.root_target_column_id = ?
+    WHERE s.root_target_object_id = ? AND s.root_target_column_id = ?
 """
 
 
@@ -35,10 +35,12 @@ def build_column_graph(
     business_process_id: str | None = None,
 ) -> dict[str, Any]:
     sql = _STEPS_SQL
-    params: tuple = (project, object_id, column_id)
     if business_process_id is not None:
         sql += " AND s.business_process_id = ?"
-        params += (business_process_id,)
+        params: tuple = (object_id, column_id, business_process_id)
+    else:
+        sql += " AND bp.project_name = ?"
+        params = (object_id, column_id, project)
     steps = conn.execute(sql, params).fetchall()
     graph = StepGraph(steps)
     reachable = sorted(graph.reachable(), key=lambda i: (graph.by_id[i]["lineage_level"], i))
