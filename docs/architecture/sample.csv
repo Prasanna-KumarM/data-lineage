@@ -1,14 +1,22 @@
-{
-    "project": "GP_CLO",
-    "object_id": "TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021",
-    "column_id": "TCOL_d2386b19b3cf47e925860d24bf64bda8f34670ca437dbbd230745a80972f9104",
-    "has_lineage": false,
-    "nodes": [],
-    "edges": [],
-    "totals": {
-        "nodes": 0,
-        "edges": 0,
-        "sources": 0,
-        "hops_max": 0
-    }
-}
+SELECT bp.project_name,
+       bp.business_process_id,
+       bp.business_process_name,
+       s.root_target_object_id,
+       s.root_target_column_id,
+       s.lineage_level,
+       s.step_id,
+       s.source_object_name,
+       s.source_column_name,
+       s.target_object_id,
+       s.target_column_id
+FROM business_lineage_step s
+JOIN business_process bp
+  ON bp.business_process_id = s.business_process_id
+WHERE s.root_target_object_name = '<TABLE_NAME>'
+  AND s.root_target_column_name = '<COLUMN_NAME>'
+ORDER BY bp.project_name, bp.business_process_name, s.lineage_level, s.step_id;
+
+GET /data-lineage/api/lineage/upstream?project=GP_CLO&object_id=TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021&column_id=TCOL_d2386b19b3cf47e925860d24bf64bda8f34670ca437dbbd230745a80972f9104
+
+GET /data-lineage/api/targets/TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021/summary?project=GP_CLO
+GET /data-lineage/api/targets/TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021/columns?project=GP_CLO
