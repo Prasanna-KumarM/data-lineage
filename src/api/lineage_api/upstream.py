@@ -95,15 +95,19 @@ def get_root_choices(
     business_process_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Immediate upstream choices of the selected target column (level-0 steps)."""
-    process_filter = " AND c.business_process_id = ?" if business_process_id is not None else ""
-    params: tuple = (project, object_id, column_id)
+    process_filter = ""
+    params: tuple = (object_id, column_id)
     if business_process_id is not None:
+        process_filter = " AND c.business_process_id = ?"
         params += (business_process_id,)
+    else:
+        process_filter = " AND bp.project_name = ?"
+        params += (project,)
     rows = conn.execute(
         _choice_select(conn)
         + """FROM business_lineage_step c
              JOIN business_process bp ON bp.business_process_id = c.business_process_id
-             WHERE c.lineage_level = 0 AND bp.project_name = ?
+             WHERE c.lineage_level = 0
                AND c.root_target_object_id = ? AND c.root_target_column_id = ?"""
         + process_filter
         + _ORDER,
