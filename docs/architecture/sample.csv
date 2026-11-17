@@ -1,44 +1,104 @@
-SELECT bp.project_name,
-       bp.business_process_id,
-       bp.business_process_name,
-       s.root_target_object_id,
-       s.root_target_column_id,
-       s.lineage_level,
-       s.step_id,
-       s.source_object_name,
-       s.source_column_name,
-       s.target_object_id,
-       s.target_column_id
+Updated todo list
+
+Understood — you want a reproducible minimal GP_CLO fixture, not just another synthetic SP_LIQ test. I’ll determine the exact table rows the API paths read, then give you targeted SQL exports to run on the other laptop; I won’t change code or create a DB until you send those results.
+
+Read 
+
+Read , lines 80 to 145
+
+Read , lines 150 to 245
+
+Read 
+
+Yes. For a minimal API-level test of the failing **PAR_ACCOUNTING_ENTRIES** graph, please run these read-only SQLite queries against the GP_CLO DB. The identifiers below are from your sample. You already provided the invocation and Target-component results; I’ve included those queries too so the fixture data is complete.
+
+**1. Confirm the physical root column name**
+```sql
+SELECT DISTINCT root_target_object_id, root_target_object_name,
+       root_target_column_id, root_target_column_name
+FROM business_lineage_step
+WHERE root_target_object_id = 'OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76'
+  AND root_target_column_id = 'COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e';
+```
+
+**2. The relevant caller and shared business processes**
+```sql
+SELECT *
+FROM business_process
+WHERE business_process_id IN (
+  'BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd',
+  'BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265',
+  'BPR_74782fd9c3dd3feb6865f4b63c46739cd76dd97074d271eb49b09bd7ff835cd0'
+);
+```
+
+**3. The selected project’s resolved invocation to the shared BP**
+```sql
+SELECT *
+FROM business_process_invocation
+WHERE invocation_id = 'INV_47383a0c2921a99e323c64ed940c8be54d49d31427d194da04dc493d26736a40';
+```
+
+**4. Target declarations and invocation call component**
+```sql
+SELECT *
+FROM component
+WHERE component_id IN (
+  'CMP_b26b104f3d37e2189a1294b4bbcf4553d3a535831a5697144ca14f77aa557461',
+  'CMP_57896d13835f7ee39743497858650699b2c35d8b0ff7d35df5b78082e2a9d9e3',
+  'CMP_ba87832c33218078eed8d8e5836e35e6bdb76cc55cc5af95505d8310f05b2e53'
+);
+```
+
+**5. All steps for the affected physical column**  
+This is the key graph/upstream input. Please export **all columns** with `s.*`.
+```sql
+SELECT s.*, bp.project_name AS bp_project_name
 FROM business_lineage_step s
-JOIN business_process bp
-  ON bp.business_process_id = s.business_process_id
-WHERE s.root_target_object_name = '<TABLE_NAME>'
-  AND s.root_target_column_name = '<COLUMN_NAME>'
-ORDER BY bp.project_name, bp.business_process_name, s.lineage_level, s.step_id;
+JOIN business_process bp ON bp.business_process_id = s.business_process_id
+WHERE s.root_target_object_id = 'OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76'
+  AND s.root_target_column_id = 'COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e'
+ORDER BY bp.project_name, s.business_process_id, s.lineage_level, s.step_id;
+```
 
-OUTPUT:
-"project_name","business_process_id","business_process_name","root_target_object_id","root_target_column_id","lineage_level","step_id","source_object_name","source_column_name","target_object_id","target_column_id"
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,0,BLS_06b5aefaa7ded7ebffdf2db18ef43dbddd3b47506f939e94af751f994601d39d,INTERIM,ACCOUNT_CLASSIFICATION,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,0,BLS_313bae22a10b9861e591393c76face2749d3ed10c20125fd4ae129246c397bee,INTERIM,ACCOUNT_CLASSIFICATION,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,0,BLS_c8570d80c46c3fc6432d706a87172d460602bab6990ff97001fbb5218a02e553,PAR_ACCOUNTING_ENTRIES,ACCOUNT_CLASSIFICATION,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,1,BLS_45fc5766f81f28ee3a246f0f422ecbc64eb3be4e3e66f1bfbdb549bed44e1c6e,INTERIM,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_f2a1158240749436798260f8b9256f367733d485fd6663b724dee0f0986cefec
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,1,BLS_fc6b1c89cde8abda9e216adea2e04f79416fc822a29b657eea78b8e484fe82b0,INTERIM,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_78f31734c4f0172881486c6c338de04de50c733c870c79cbc55142aa70b32c73
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,2,BLS_176d6e7e26d337f13d7240deddcfed7d748b5b6fee07aa1e7a8e7a81b0f3e25f,FSD_ACCOUNT_TYPES,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_c1da9861ae761988bb1ac068832a927e0901f5e5def59aa5863fe54cd7332c6c
-GP_SHARED,BPR_2fc7118e9cf14db3e8ec5e2ee52a05c726941ee4f67bd68bb1379ace8f476265,PAR_ACCOUNTING_ENTRIES Rates and Accounts,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,2,BLS_f4f22dc55746c11f8583087a5c93305c52840f07736befd183ea1115386eeea3,FSD_ACCOUNT_TYPES,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_8e2679e79606d6914b069e0995e78b08398ed7f5cf4d5124a75c2474c5526e00
-GP_SHARED,BPR_74782fd9c3dd3feb6865f4b63c46739cd76dd97074d271eb49b09bd7ff835cd0,PAR_ACCOUNTING_ENTRIES Rates and Accounts Multi-GAAP,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,0,BLS_d7f3e7090896ad6ccbaa9789f4fbd4514dd65597938ca7dbb10ea8361404c5f5,INTERIM,ACCOUNT_CLASSIFICATION,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e
-GP_SHARED,BPR_74782fd9c3dd3feb6865f4b63c46739cd76dd97074d271eb49b09bd7ff835cd0,PAR_ACCOUNTING_ENTRIES Rates and Accounts Multi-GAAP,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,1,BLS_38ae3d932f80715630c009a2df4d51069edf049040417d784f7aa020087f193f,INTERIM,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_5aaae2dccc3f79e624b56f8313f3008b7f2b0f071b3425a3d5300d58b701f7e2
-GP_SHARED,BPR_74782fd9c3dd3feb6865f4b63c46739cd76dd97074d271eb49b09bd7ff835cd0,PAR_ACCOUNTING_ENTRIES Rates and Accounts Multi-GAAP,OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76,COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e,2,BLS_b7204fed293b66b1fac35efe741024252e606869d403d34302727b7e7a1f2108,FSD_ACCOUNT_TYPES,CLASSIFICATION,OBJ_10b1e40cd79216a90ff2e739fe40b891fef06ed9d2f2eb141323cb584161999a,COL_611904cf2861fb27638014390287d91229322e7d97f84e5363289cb5fb052bc3
+**6. One GP_CLO root step to register the project in the minimal API fixture**  
+The API’s `/projects` check requires at least one lineage step owned by GP_CLO.
+```sql
+SELECT s.*, bp.project_name AS bp_project_name
+FROM business_lineage_step s
+JOIN business_process bp ON bp.business_process_id = s.business_process_id
+WHERE s.business_process_id = 'BPR_6dff0826795e06fbc10c9cc2a11b7150e84ab1544d80aafeae4ec1cc2b5d91fd'
+  AND s.root_target_object_name = 'PAR_ACCOUNTING_ENTRIES'
+ORDER BY s.lineage_level, s.step_id
+LIMIT 1;
+```
 
+**7. Canonical objects referenced by the affected steps**
+```sql
+WITH relevant_steps AS (
+  SELECT *
+  FROM business_lineage_step
+  WHERE root_target_object_id = 'OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76'
+    AND root_target_column_id = 'COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e'
+)
+SELECT DISTINCT o.*
+FROM canonical_object o
+WHERE o.object_id IN (
+  SELECT root_target_object_id FROM relevant_steps
+  UNION SELECT source_object_id FROM relevant_steps
+  UNION SELECT target_object_id FROM relevant_steps
+)
+ORDER BY o.object_id;
+```
 
-GET /data-lineage/api/lineage/upstream?project=GP_CLO&object_id=TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021&column_id=TCOL_d2386b19b3cf47e925860d24bf64bda8f34670ca437dbbd230745a80972f9104
+**8. The physical target column row**
+```sql
+SELECT *
+FROM canonical_column
+WHERE object_id = 'OBJ_fa8a802b34f1aec244a9c8b06d1db5d98a24a3a004d5b910adfae05b81a27f76'
+  AND column_id = 'COL_80543beef6c706dcdb07c24e1e3119eac239211182c473c37a023e9a4fa1712e';
+```
 
-GET /data-lineage/api/targets/TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021/summary?project=GP_CLO
-GET /data-lineage/api/targets/TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021/columns?project=GP_CLO
+The repo already has the schema DDL, so no need to export schema definitions or whole tables. These rows should let me build a minimal test DB and exercise the real `/targets`, summary, graph, and upstream endpoints.
 
-{
-    "project": "GP_CLO",
-    "object_id": "TARGET_2f6edbd36cbce1ac47dcf9124565f682c81355b1c8aa5cc0360734a271426021",
-    "column_id": "TCOL_d2386b19b3cf47e925860d24bf64bda8f34670ca437dbbd230745a80972f9104",
-    "step_id": null,
-    "terminal_sources": []
-}
+Created 3 todos
