@@ -43,7 +43,7 @@ describe('choosing a project on the summary page', () => {
       { text: 'SP_CLO', disabled: false },
       { text: 'SP_LIQ', disabled: false },
     ])
-    await user.click(screen.getByRole('button', { name: /notes? about the listed projects/ }))
+    await user.click(await screen.findByRole('button', { name: /notes? about the listed projects/ }))
     expect(document.body.textContent).toContain('GP_BROKEN: The database needs to be migrated')
     expect(screen.getByText('Choose a project to see its target tables.')).toBeTruthy()
     expect(screen.queryByLabelText('Search target tables')).toBeNull()

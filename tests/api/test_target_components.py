@@ -221,6 +221,9 @@ def test_target_from_directly_invoked_project_is_included_in_selected_project_db
     upstream = client.get("/lineage/upstream", params=params)
     assert upstream.status_code == 200
     assert upstream.json()["choices"]
+    sources = client.get("/lineage/ultimate-sources", params=params)
+    assert sources.status_code == 200
+    assert sources.json()["terminal_sources"]
 
 
 def test_gfrs_target_includes_lineage_from_its_block_callers(sp_liq_db):
