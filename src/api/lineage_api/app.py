@@ -217,6 +217,11 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None,
         finally:
             conn.close()
 
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
+    
     @app.get("/catalog/analysis-stats", response_model=schemas.AnalysisStatsOut)
     def catalog_analysis_stats(request: Request, pair: list[str] = Query([])):
         """'What the tool analyzed' numbers behind the given `project:table` pairs."""
