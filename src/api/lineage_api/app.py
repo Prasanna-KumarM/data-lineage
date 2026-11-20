@@ -27,7 +27,7 @@ from lineage_api.analysis_stats import AnalysisStatsCache
 from lineage_api.business_catalog import BusinessCatalog
 from lineage_api.projects import ENV_OUTPUTS_DIR, ProjectRegistry
 from lineage_api.sources import TargetSourceCache, sources_for_step
-from lineage_api.summary import TableSummaryCache
+from lineage_api.summary import TableSummaryCache, summarize_table
 from lineage_api.target_catalog import (
     TargetCatalogCache,
     _has_target_components,
@@ -242,19 +242,24 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None,
         ]
 
     def _summary_for(
-        conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+        conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None,
+        *, export: bool = False,
     ) -> tuple[dict, str]:
         """(summary, object name) as shown in the UI; shared by the JSON and Excel endpoints."""
         target = find_target(conn, project, object_id, cache) if _has_target_components(conn) else None
         if target is not None:
+            if export:
+                return summarize_target(conn, project, object_id, cache=cache, path_limit=None), target["object_name"]
             summary = app.state.summary_cache.get_computed(
                 conn,
                 (project, object_id),
                 lambda: summarize_target(conn, project, object_id, cache=cache),
             )
             return summary, target["object_name"]
-        summary = app.state.summary_cache.get(conn, project, object_id)
         obj = next(o for o in _api_targets(conn, project, cache) if o["object_id"] == object_id)
+        if export:
+            return summarize_table(conn, project, object_id, path_limit=None), obj["object_name"]
+        summary = app.state.summary_cache.get(conn, project, object_id)
         return summary, obj["object_name"]
 
     @app.get("/targets/{object_id}/summary", response_model=schemas.TableSummaryOut)
@@ -273,7 +278,7 @@ def create_app(db_path: Optional[str] = None, outputs_dir: Optional[str] = None,
     def table_summary_export(request: Request, object_id: str, project: str = Query(...), conn: sqlite3.Connection = Depends(get_conn)):
         cache = request.app.state.catalog_cache
         _require_object(conn, project, object_id, cache)
-        summary, object_name = _summary_for(conn, project, object_id, cache)
+        summary, object_name = _summary_for(conn, project, object_id, cache, export=True)
         content = build_table_workbook(conn, project, object_name, summary)
         return Response(
             content=content,

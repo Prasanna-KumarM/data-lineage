@@ -308,10 +308,11 @@ def list_target_columns(conn: sqlite3.Connection, project: str, object_id: str) 
 
 
 def summarize_target(
-    conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None
+    conn: sqlite3.Connection, project: str, object_id: str, cache: TargetCatalogCache | None = None,
+    *, path_limit: int | None = 100,
 ) -> dict[str, Any]:
     """Combine the physical root lineages owned by one Aptitude Target component."""
-    from lineage_api.summary import _NO_LINEAGE, _analyze_column, source_kind
+    from lineage_api.summary import _NO_LINEAGE, _analyze_column, path_source_key, source_kind
 
     target = find_target(conn, project, object_id, cache)
     if target is None:
@@ -341,7 +342,8 @@ def summarize_target(
 
     columns = []
     for name in names:
-        details = [_analyze_column(rows) for rows in grouped_steps.get(name, {}).values()]
+        details = [_analyze_column(rows, path_limit) for rows in grouped_steps.get(name, {}).values()]
+        paths = sorted([path for detail in details for path in detail["paths"]][:path_limit], key=path_source_key)
 
         by_terminal: dict[str, dict[str, Any]] = {}
         for detail in details:
@@ -377,6 +379,7 @@ def summarize_target(
                 "hops_max": max((s["hops_max"] for s in sources), default=None),
                 "flags": flags if sources else dict(_NO_LINEAGE["flags"]),
                 "sources": sources,
+                "paths": paths,
             }
         )
     return {

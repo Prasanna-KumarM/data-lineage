@@ -54,7 +54,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     headers = [c.value for c in sheet[1]]
     assert headers == ["Target object", "Target column", "Source object", "Source column", "Expression", "Result", "Path"]
     rows = [[c.value for c in row] for row in sheet.iter_rows(min_row=2)]
-    assert len(rows) == sum(max(1, len(c["sources"])) for c in summary["columns"])
+    assert len(rows) == sum(max(1, sum(s["route_count"] for s in c["sources"])) for c in summary["columns"])
     assert len({r[0] for r in rows}) == 1
     assert sorted({r[1] for r in rows}) == sorted(c["column_name"] for c in summary["columns"])
 
@@ -73,7 +73,7 @@ def test_workbook_rows_match_the_summary(sp_clo_client):
     assert [c.value for c in wb["Steps"][1]] == ["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"]
     # Business process is populated on every Steps row.
     assert all(r[8] for r in steps)
-    assert len(steps) == sum(len(s["route"]) for c in summary["columns"] for s in c["sources"])
+    assert len(steps) == sum(len(p["route"]) for c in summary["columns"] for p in c["paths"])
     fdk_steps = [r for r in steps if r[1] == "FDK_MT" and r[2] == "CM_CLO_OFFER.OFR_HTCS_BOOK_CODE"]
     assert [r[3] for r in fdk_steps] == list(range(1, len(fdk_steps) + 1))
     assert fdk_steps[0][5] == "CM_PAR_LOAN_TRADES.FDK_MT"

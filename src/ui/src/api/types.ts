@@ -222,6 +222,7 @@ export interface SummaryColumn {
   hops_max: number | null
   flags: SummaryFlags
   sources: SummarySource[]
+  paths?: { route: SummarySource['route'] }[]
 }
 
 export interface TableSummary {

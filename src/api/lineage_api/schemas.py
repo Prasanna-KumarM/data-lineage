@@ -229,6 +229,14 @@ class SummarySourceOut(BaseModel):
     route: list[RouteStepOut]
 
 
+class SummaryPathOut(BaseModel):
+    object_name: str
+    column_name: str
+    condition: Optional[str] = None
+    result_expression: Optional[str] = None
+    route: list[RouteStepOut]
+
+
 class SummaryFlagsOut(BaseModel):
     constant: bool
     function: bool
@@ -246,6 +254,7 @@ class SummaryColumnOut(BaseModel):
     hops_max: Optional[int] = None
     flags: SummaryFlagsOut
     sources: list[SummarySourceOut]
+    paths: list[SummaryPathOut]
 
 
 class SummaryTotalsOut(BaseModel):

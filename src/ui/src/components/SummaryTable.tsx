@@ -27,11 +27,11 @@ export function KindBadge({ kind }: { kind: SourceKind }) {
   return <span className={`badge kind-${kind}`}>{KIND_LABEL[kind]}</span>
 }
 
-function PathLine({ column, source }: { column: string; source: SummarySource }) {
-  const nodes = [column, ...source.route.map((s) => s.endpoint)]
+function PathLine({ column, route }: { column: string; route: SummarySource['route'] }) {
+  const nodes = [column, ...route.map((s) => s.endpoint)]
   return (
     <li className="path-line">
-      <span className="hops-badge">{hopsText(source.hops_min, source.hops_max)}</span>
+      <span className="hops-badge">{hops(route.length)}</span>
       <span className="route">
         {nodes.map((node, index) => (
           <span key={index} className="route-part">
@@ -46,8 +46,8 @@ function PathLine({ column, source }: { column: string; source: SummarySource })
               }
               title={
                 index > 0
-                  ? `${relationStyle(source.route[index - 1].relation_type).label}${
-                      source.route[index - 1].component_name ? ` · ${source.route[index - 1].component_name}` : ''
+                    ? `${relationStyle(route[index - 1].relation_type).label}${
+                      route[index - 1].component_name ? ` · ${route[index - 1].component_name}` : ''
                     }`
                   : undefined
               }
@@ -57,7 +57,6 @@ function PathLine({ column, source }: { column: string; source: SummarySource })
           </span>
         ))}
       </span>
-      {source.route_count > 1 && <span className="card-meta">{plural(source.route_count, 'route', 'routes')}</span>}
     </li>
   )
 }
@@ -281,13 +280,16 @@ export function SummaryTable({ summary, onOpenColumn, onOpenGraph, onOpenDetail 
                       onToggle={() => toggle(openPaths, setOpenPaths, column.column_id)}
                       label={`Paths of ${column.column_name}`}
                     >
-                      {plural(column.source_count, 'path', 'paths')} · {hopsText(column.hops_min!, column.hops_max!)}
+                      {plural(column.sources.reduce((count, source) => count + source.route_count, 0), 'path', 'paths')} · {hopsText(column.hops_min!, column.hops_max!)}
                     </Disclosure>
                     {openPaths.has(column.column_id) && (
                       <ul className="path-list" aria-label={`Paths of ${column.column_name}`}>
-                        {column.sources.map((source) => (
-                          <PathLine key={source.terminal_id} column={column.column_name} source={source} />
+                        {(column.paths ?? column.sources).map((path, index) => (
+                          <PathLine key={index} column={column.column_name} route={path.route} />
                         ))}
+                        {column.paths && column.paths.length < column.sources.reduce((count, source) => count + source.route_count, 0) && (
+                          <li className="card-meta">Showing {column.paths.length} paths. Download Excel for all paths.</li>
+                        )}
                       </ul>
                     )}
                   </>
