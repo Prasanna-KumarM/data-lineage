@@ -67,13 +67,12 @@ def _style_sheet(sheet, widths: list[int], wrap_from_row: int = 2) -> None:
 
 
 def _summary_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) -> None:
-    """One row per target column and ultimate source, mirroring the UI summary page:
-    the ultimate source, its expressions, and the full lineage path on one row."""
+    """One row per complete lineage path, or a note for a column without lineage."""
     sheet = wb.active
     sheet.title = "Summary"
     sheet.append(["Target object", "Target column", "Source object", "Source column", "Expression", "Result", "Path"])
     for column in columns:
-        sources = column["sources"] or [None]
+        sources = column["paths"] or [None]
         for source in sources:
             if source is None:
                 sheet.append([object_name, column["column_name"], "No lineage", "", "", "", ""])
@@ -117,7 +116,7 @@ def _steps_sheet(wb: Workbook, object_name: str, columns: list[dict[str, Any]]) 
     sheet = wb.create_sheet("Steps")
     sheet.append(["Target table", "Target column", "Ultimate source", "Hop", "From", "To", "Mapping kind", "Component", "Business process", "EXPR (driving)", "OUTPUT (result)"])
     for column in columns:
-        for source in column["sources"]:
+        for source in column["paths"]:
             route = source["route"]
             terminal = f"{source['object_name']}.{source['column_name']}"
             for index, step in enumerate(route):
@@ -159,7 +158,6 @@ _GLOSSARY = [
     ("Ultimate source", "The furthest point upstream: a column nothing else feeds in this lineage, or a constant/function."),
     ("Hop", "One mapping step. Hop 1 reads the target column; the last hop reads the ultimate source."),
     ("Hops", "The number of hops between the target column and the ultimate source. A range (for example 2–4 hops) means the paths differ in length."),
-    ("Path variants", "How many distinct paths reach the same ultimate source. Above 1, the Steps sheet lists the shortest."),
     ("N mappings", "A path written by more than one mapping (same endpoints, different relation/component). The count names how many."),
     ("EXPR", "The driving expression: the condition that decides whether the mapping applies."),
     ("OUTPUT", "The result expression: how the value is computed."),
@@ -174,9 +172,9 @@ def _legend_sheet(wb: Workbook, conn: sqlite3.Connection, project: str) -> None:
         ("Database", _db_name(conn)),
         ("Extracted at", _extraction_timestamp(conn)),
         ("", ""),
-        ("Summary sheet", "One row per target column and ultimate source, exactly as the summary page lists them: the source, its expressions, and the full lineage path from the target column to that source."),
+        ("Summary sheet", "One row per lineage path from a target column to an ultimate source."),
         ("Mappings sheet", "Distinct target column / ultimate source pairs; one row each, nothing else."),
-        ("Steps sheet", "One row per hop of the shortest path from the target column to each ultimate source. 'From' is the column being read; 'To' is what it feeds. When Path variants > 1, only one path is listed."),
+        ("Steps sheet", "One row per hop of each lineage path. 'From' is the column being read; 'To' is what it feeds."),
         ("", ""),
         ("Glossary", ""),
         *_GLOSSARY,

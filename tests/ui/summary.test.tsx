@@ -270,7 +270,8 @@ describeReal('table summary on the real SP_CLO lineage', () => {
     for (const column of summary.columns) {
       const row = rowOf(column.column_name)
       const hops = column.hops_min === column.hops_max ? `${column.hops_min} ${column.hops_min === 1 ? 'hop' : 'hops'}` : `${column.hops_min}–${column.hops_max} hops`
-      const paths = `${column.source_count} ${column.source_count === 1 ? 'path' : 'paths'} · ${hops}`
+      const pathCount = column.sources.reduce((total, source) => total + source.route_count, 0)
+      const paths = `${pathCount} ${pathCount === 1 ? 'path' : 'paths'} · ${hops}`
       expect(textOf(within(row).getByRole('button', { name: `Paths of ${column.column_name}` }))).toContain(paths)
       expect(textOf(within(row).getByRole('button', { name: `Ultimate sources of ${column.column_name}` }))).toContain(
         `${column.source_count} ${column.source_count === 1 ? 'source' : 'sources'}`,
@@ -392,6 +393,23 @@ describe('summary page with a scripted client', () => {
     remainingDepth: async () => { throw new Error('unused') },
     stepDetail: async () => { throw new Error('unused') },
     ultimateSources: async (t) => ({ project: t.project, object_id: t.objectId, column_id: t.columnId, step_id: null, terminal_sources: [] }),
+  })
+
+  it('shows two two-hop paths to one ultimate source', async () => {
+    const [source] = column({}).sources
+    const paths = ['ARRANGEMENTS.C', 'BALANCES.C'].map((endpoint) => ({
+      route: [{ ...source.route[0], endpoint }, ...source.route],
+    }))
+    const both = column({ paths, hops_min: 2, hops_max: 2, sources: [{ ...source, route_count: 2 }] })
+    const user = show({ ...client(), tableSummary: async () => ({ ...summary, columns: [both] }) }, '#/summary/A/o1')
+    const disclosure = await screen.findByRole('button', { name: 'Paths of C' })
+    expect(textOf(disclosure)).toContain('2 paths · 2 hops')
+    expect(textOf(screen.getByRole('button', { name: 'Ultimate sources of C' }))).toContain('1 source')
+    await user.click(disclosure)
+    const list = screen.getByRole('list', { name: 'Paths of C' })
+    expect(within(list).getAllByRole('listitem').map(textOf)).toEqual([
+      '2 hopsC ← ARRANGEMENTS.C ← SRC.S', '2 hopsC ← BALANCES.C ← SRC.S',
+    ])
   })
 
   it('lists a column without lineage and marks it', async () => {

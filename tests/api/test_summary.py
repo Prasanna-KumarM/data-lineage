@@ -289,7 +289,7 @@ def test_summary_endpoint_returns_the_table_and_its_columns(client):
     assert body["object"]["object_name"] == "AR_PAR_LOAN_EVENTS"
     assert body["totals"] == {"columns": 46, "with_lineage": 46}
     pdt = next(c for c in body["columns"] if c["column_name"] == "PDT_CODE")
-    assert set(pdt) == {"column_id", "column_name", "has_lineage", "source_count", "hops_min", "hops_max", "flags", "sources"}
+    assert set(pdt) == {"column_id", "column_name", "has_lineage", "source_count", "hops_min", "hops_max", "flags", "sources", "paths"}
     assert [s["condition"] for s in pdt["sources"]] == ['AEF_EVENT_CODE=="E011"', "ELSE"]
     assert set(pdt["sources"][0]) == {
         "terminal_id", "leaf_step_id", "object_name", "column_name", "object_type", "kind", "condition", "result_expression",

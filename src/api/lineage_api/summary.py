@@ -1,11 +1,11 @@
 """Table-level lineage summary: for each target column, one line per ultimate source (summary page).
 
-Hop counts are mappings from the target: a direct mapping is 1 hop. Routes are counted, never
-enumerated, so shared upstream cannot blow up the response.
+Hop counts are mappings from the target: a direct mapping is 1 hop.
 """
 import sqlite3
 import threading
 from collections import OrderedDict
+from itertools import islice
 from typing import Any
 
 from lineage_api.db import declared_only
@@ -37,7 +37,42 @@ def source_kind(object_type: str | None, leaf_relation_types: list[str] | set[st
     return "column"
 
 
-def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
+PATH_PREVIEW_LIMIT = 100
+
+
+def path_source_key(path: dict[str, Any]) -> tuple[str, str, str, str]:
+    return (path["object_name"], path["column_name"], path["condition"] or "", path["result_expression"] or "")
+
+
+def _paths(graph: StepGraph, roots: list[str]):
+    stack = [(root, ()) for root in reversed(roots)]
+    while stack:
+        step_id, prefix = stack.pop()
+        step = graph.by_id[step_id]
+        route = (*prefix, _route_step(step))
+        children = graph.kids_of(step)
+        if children:
+            stack.extend((child, route) for child in reversed(sorted(children)))
+            continue
+        yield {
+            "object_name": step["source_object_name"],
+            "column_name": step["source_column_name"],
+            "condition": step["driving_expression"],
+            "result_expression": step["result_expression"],
+            "route": route,
+        }
+
+
+def _route_step(step: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "endpoint": f"{step['source_object_name']}.{step['source_column_name']}",
+        "relation_type": step["relation_type"],
+        "component_name": step["component_name"],
+        "business_process_name": step["business_process_name"],
+    }
+
+
+def _analyze_column(steps: list[sqlite3.Row], path_limit: int | None = PATH_PREVIEW_LIMIT) -> dict[str, Any]:
     graph = StepGraph(steps)
     reachable = graph.reachable()
     by_id = graph.by_id
@@ -99,12 +134,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
         while step_id is not None:
             s = by_id[step_id]
             out.append(
-                {
-                    "endpoint": f"{s['source_object_name']}.{s['source_column_name']}",
-                    "relation_type": s["relation_type"],
-                    "component_name": s["component_name"],
-                    "business_process_name": s["business_process_name"],
-                }
+                _route_step(s)
             )
             step_id = stats[step_id][tid][3]
         return out
@@ -155,6 +185,7 @@ def _analyze_column(steps: list[sqlite3.Row]) -> dict[str, Any]:
         "hops_max": max((s["hops_max"] for s in sources), default=None),
         "flags": flags,
         "sources": sources,
+        "paths": sorted(islice(_paths(graph, roots), path_limit), key=path_source_key),
     }
 
 
@@ -165,10 +196,13 @@ _NO_LINEAGE = {
     "hops_max": None,
     "flags": {"constant": False, "function": False, "not_persisted": False, "case_branches": False, "inferred": False},
     "sources": [],
+    "paths": [],
 }
 
 
-def summarize_table(conn: sqlite3.Connection, project: str, object_id: str) -> dict[str, Any]:
+def summarize_table(
+    conn: sqlite3.Connection, project: str, object_id: str, *, path_limit: int | None = PATH_PREVIEW_LIMIT
+) -> dict[str, Any]:
     """Every declared column of the target object, with one entry per ultimate source."""
     by_column: dict[str, list[sqlite3.Row]] = {}
     for s in conn.execute(_TABLE_STEPS_SQL, (project, object_id)).fetchall():
@@ -182,7 +216,7 @@ def summarize_table(conn: sqlite3.Connection, project: str, object_id: str) -> d
     result = []
     for c in columns:
         steps = by_column.get(c["column_id"])
-        detail = _analyze_column(steps) if steps else {**_NO_LINEAGE, "flags": dict(_NO_LINEAGE["flags"]), "sources": []}
+        detail = _analyze_column(steps, path_limit) if steps else {**_NO_LINEAGE, "flags": dict(_NO_LINEAGE["flags"]), "sources": []}
         result.append({"column_id": c["column_id"], "column_name": c["column_name"], **detail})
     return {
         "object_id": object_id,
